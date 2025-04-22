@@ -27,6 +27,14 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL');
 const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
+if (!openaiApiKey) {
+  console.error("OPENAI_API_KEY is not set. Please set it in Supabase secrets.");
+}
+
+if (!supabaseUrl || !supabaseServiceKey) {
+  console.error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is not set. Please set them in Supabase secrets.");
+}
+
 // Setup OpenAI configuration
 const configuration = new Configuration({
   apiKey: openaiApiKey,
@@ -202,22 +210,6 @@ serve(async (req) => {
     // Always call OpenAI again for friendly user-facing chatty advice
     let chatGptAdvice = "";
     try {
-      const chatGptPrompt = `
-      Please analyze the following skin information and give detailed, user-friendly advice in plain English (not JSON). Use a friendly tone and actionable suggestions. The answers are:
-
-      Age: ${formData.age || 'unknown'}
-      Skin type: ${formData.skinType || 'unknown'}
-      Skin concern: ${formData.concernDescription || 'none provided'}
-      Duration: ${formData.duration || 'unknown'}
-      Recent changes: ${formData.recentChanges || 'no'}
-      Painful or irritating: ${formData.isPainful || 'no'}
-      Existing skin condition: ${formData.hasCondition || 'no'}
-      Additional info: ${formData.additionalInfo || 'none'}
-      Image URL: ${imageUrl}
-
-      Based on this skin image and details, what do you observe? What are likely conditions? What lifestyle/treatment tips would you recommend? Please be conversational and supportive.
-      `;
-
       const chatGptResp = await openai.createChatCompletion({
         model: "gpt-4o",
         messages: [
@@ -250,7 +242,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         error: 'Error processing request', 
-        message: error.message
+        message: error.message,
+        details: error
       }),
       { status: 500, headers: corsHeaders }
     );

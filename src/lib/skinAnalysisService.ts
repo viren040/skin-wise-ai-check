@@ -51,7 +51,7 @@ export const uploadSkinImage = async (file: File, userId: string = 'anonymous'):
   try {
     console.log('Starting image upload process...');
     
-    // Ensure the bucket exists (we've created it via SQL now)
+    // Ensure the bucket exists
     const bucketExists = await ensureSkinAnalysisBucketExists();
     if (!bucketExists) {
       console.error('Failed to ensure bucket exists');
@@ -106,6 +106,7 @@ export const saveAnalysisData = async (
   try {
     const analysisId = uuidv4();
     
+    // Explicitly include the API key in the request by using the supabase instance
     const { error } = await supabase
       .from('skin_analyses')
       .insert([
@@ -139,6 +140,7 @@ export const analyzeSkinImage = async (
   try {
     console.log('Sending request to analyze skin image:', imageUrl);
     
+    // Explicitly use the supabase instance which includes the API key
     const { data, error } = await supabase.functions.invoke('analyze-skin', {
       body: {
         imageUrl,

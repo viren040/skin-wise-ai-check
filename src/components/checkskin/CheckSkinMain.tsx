@@ -26,6 +26,7 @@ export const CheckSkinMain = () => {
   const [debugInfo, setDebugInfo] = useState<{
     uploadStatus: string;
     analysisStatus: string;
+    apiError?: string;
   }>({
     uploadStatus: 'Not started',
     analysisStatus: 'Not started'
@@ -134,14 +135,37 @@ export const CheckSkinMain = () => {
       }
     } catch (error: any) {
       console.error("Analysis error:", error);
-      setError(error.message || "We encountered an error analyzing your skin. Please try again.");
+      
+      // Extract more detailed API error information if available
+      let errorMessage = error.message || "We encountered an error analyzing your skin. Please try again.";
+      let apiError = '';
+      
+      try {
+        // Try to parse if it's a JSON string error
+        if (typeof error.message === 'string' && (error.message.includes('{') || error.message.includes('['))) {
+          const parsedError = JSON.parse(error.message);
+          if (parsedError.message) {
+            apiError = parsedError.message;
+            errorMessage = `API Error: ${parsedError.message}`;
+          }
+        } else if (error.error && typeof error.error === 'object') {
+          apiError = JSON.stringify(error.error);
+          errorMessage = `API Error: ${error.error.message || JSON.stringify(error.error)}`;
+        }
+      } catch (parseError) {
+        // If parsing fails, use the original error message
+        console.error("Error parsing error message:", parseError);
+      }
+      
+      setError(errorMessage);
       toast.error("Analysis failed", {
-        description: error.message || "We encountered an error analyzing your skin. Please try again.",
+        description: errorMessage,
       });
       setIsAnalyzing(false);
       setDebugInfo(prev => ({ 
         ...prev, 
-        analysisStatus: 'Error: ' + (error.message || 'Unknown error') 
+        analysisStatus: 'Error: ' + (error.message || 'Unknown error'),
+        apiError: apiError || undefined
       }));
     }
   };
@@ -167,6 +191,9 @@ export const CheckSkinMain = () => {
           <p className="font-bold">Debug Info:</p>
           <p>Upload Status: {debugInfo.uploadStatus}</p>
           <p>Analysis Status: {debugInfo.analysisStatus}</p>
+          {debugInfo.apiError && (
+            <p className="mt-2 text-red-500">API Error Details: {debugInfo.apiError}</p>
+          )}
           {uploadedImageUrl && (
             <p>Uploaded Image URL: <a href={uploadedImageUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">{uploadedImageUrl}</a></p>
           )}

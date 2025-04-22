@@ -10,7 +10,7 @@ export const supabaseStorage = createClient(
 // Now that we've created the bucket via SQL, this function is simpler
 export const ensureSkinAnalysisBucketExists = async () => {
   try {
-    // Check if bucket exists by trying to get it
+    // Just check if bucket exists
     const { data, error } = await supabaseStorage.storage.getBucket('skin-analysis');
     
     if (error) {

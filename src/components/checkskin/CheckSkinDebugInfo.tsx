@@ -15,7 +15,8 @@ export const CheckSkinDebugInfo = ({
   debugInfo,
   imageUrl
 }: CheckSkinDebugInfoProps) => {
-  if (!process.env.NODE_ENV === "development" && !debugInfo) return null;
+  // Fix the type comparison error - process.env.NODE_ENV returns a string, not a boolean
+  if (process.env.NODE_ENV !== "development" && !debugInfo) return null;
 
   return (
     <div className="mb-4 p-4 bg-gray-100 text-sm rounded border border-gray-300">

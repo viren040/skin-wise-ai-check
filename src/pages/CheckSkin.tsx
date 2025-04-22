@@ -7,6 +7,9 @@ import { SkinAnalysisResult } from "@/components/SkinAnalysisResult";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "@/components/ui/sonner";
 import { uploadSkinImage, analyzeSkinImage, saveAnalysisData, SkinFormData, SkinAnalysisResult as SkinAnalysisResultType } from "@/lib/skinAnalysisService";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 // Fallback mock data in case the API call fails
 const mockAnalysisResults = {
@@ -124,8 +127,49 @@ const CheckSkin = () => {
   const [analysisResults, setAnalysisResults] = useState<SkinAnalysisResultType>(mockAnalysisResults as SkinAnalysisResultType);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
   
+  // Check if Supabase is properly configured
+  const isSupabaseConfigured = !!(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
+  
   // Handle form submission with Supabase integration
   const handleFormSubmit = async (formData: FormData) => {
+    // If Supabase is not configured, use mock data
+    if (!isSupabaseConfigured) {
+      // Create local preview
+      const imageFile = formData.get("skinImage") as File;
+      if (!imageFile) {
+        toast.error("Please upload an image for analysis");
+        return;
+      }
+      
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(imageFile);
+      
+      // Start mock analysis process
+      setIsAnalyzing(true);
+      
+      // Simulate analysis progress
+      let progress = 0;
+      const progressInterval = setInterval(() => {
+        progress += 10;
+        setAnalysisProgress(progress);
+        if (progress >= 100) {
+          clearInterval(progressInterval);
+          setTimeout(() => {
+            setIsAnalyzing(false);
+            setShowResults(true);
+            toast.success("Analysis complete! (Demo Mode)", {
+              description: "Using simulated results. Connect Supabase for real analysis.",
+            });
+          }, 500);
+        }
+      }, 500);
+      
+      return;
+    }
+    
     // Extract image file for preview and upload
     const imageFile = formData.get("skinImage") as File;
     if (!imageFile) {
@@ -237,6 +281,16 @@ const CheckSkin = () => {
                 Upload a photo of your skin concern and get instant AI-powered analysis and recommendations.
               </p>
             </div>
+            
+            {!isSupabaseConfigured && (
+              <Alert variant="destructive" className="mb-6">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Configuration Missing</AlertTitle>
+                <AlertDescription>
+                  Supabase is not properly configured. This page is running in demo mode with simulated results.
+                </AlertDescription>
+              </Alert>
+            )}
             
             {isAnalyzing ? (
               <div className="flex flex-col items-center justify-center py-16">

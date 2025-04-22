@@ -43,7 +43,9 @@ export const CheckSkinAnalyzer = ({
         }, 500);
         
         // Perform the actual analysis
-        console.log('Sending for analysis with data:', { imageUrl, formData });
+        console.log('Sending request to analyze skin image:', imageUrl);
+        console.log('Form data:', formData);
+        
         const results = await analyzeSkinImage(imageUrl, formData);
         
         if (!results) {
@@ -53,6 +55,7 @@ export const CheckSkinAnalyzer = ({
         // Save the analysis data
         try {
           await saveAnalysisData(imageUrl, formData, results);
+          console.log('Analysis data saved successfully');
         } catch (saveError) {
           console.warn('Failed to save analysis data, but continuing with results', saveError);
         }
@@ -83,7 +86,13 @@ export const CheckSkinAnalyzer = ({
       }
     };
     
-    performAnalysis();
+    // Only start analysis if we have a valid image URL
+    if (imageUrl) {
+      performAnalysis();
+    } else {
+      console.error("No image URL provided for analysis");
+      onError("No image provided for analysis. Please upload an image first.");
+    }
     
     return () => {
       if (progressInterval) {

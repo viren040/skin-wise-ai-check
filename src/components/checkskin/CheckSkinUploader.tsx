@@ -23,6 +23,7 @@ export const CheckSkinUploader = ({
   const [isUploading, setIsUploading] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -54,22 +55,29 @@ export const CheckSkinUploader = ({
     
     setIsUploading(true);
     setUploadProgress(0);
+    console.log('Starting image upload process...', file);
     
     try {
       // Simulate initial progress
       setUploadProgress(10);
       onProgress(10);
       
-      const imageUrl = await uploadSkinImage(file);
+      const uploadedImageUrl = await uploadSkinImage(file);
+      
+      console.log('Upload complete, result:', uploadedImageUrl);
       
       setUploadProgress(100);
-      onProgress(30); // Set overall analysis progress to 30%
       
-      if (imageUrl) {
-        onUploadComplete({
-          success: true,
-          imageUrl
-        });
+      if (uploadedImageUrl) {
+        setImageUrl(uploadedImageUrl);
+        // Wait a moment before completing to ensure the UI shows 100%
+        setTimeout(() => {
+          onUploadComplete({
+            success: true,
+            imageUrl: uploadedImageUrl
+          });
+          onProgress(30); // Set overall analysis progress to 30%
+        }, 500);
       } else {
         throw new Error("Upload failed: No URL returned");
       }
@@ -102,7 +110,11 @@ export const CheckSkinUploader = ({
             alt="Preview" 
             className="max-h-64 max-w-full rounded-md object-contain"
           />
-          <p className="text-sm text-gray-500 mt-2">Image ready for upload</p>
+          {imageUrl ? (
+            <p className="text-sm text-green-500 mt-2">Image uploaded successfully!</p>
+          ) : (
+            <p className="text-sm text-gray-500 mt-2">Image ready for upload</p>
+          )}
         </div>
       )}
       
@@ -117,12 +129,12 @@ export const CheckSkinUploader = ({
         />
         <label
           htmlFor="skinImage"
-          className="cursor-pointer bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-200"
+          className={`cursor-pointer bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-200 ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           Select Image
         </label>
         
-        {imagePreview && !isUploading && (
+        {imagePreview && !isUploading && !imageUrl && (
           <Button
             type="button"
             onClick={() => {
@@ -135,7 +147,7 @@ export const CheckSkinUploader = ({
             }}
             disabled={isUploading}
           >
-            Upload & Analyze
+            Upload Image
           </Button>
         )}
       </div>

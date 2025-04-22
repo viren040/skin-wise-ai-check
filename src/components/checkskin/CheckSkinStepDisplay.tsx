@@ -4,6 +4,7 @@ import { SkinAnalysisResult } from "@/components/SkinAnalysisResult";
 import { CheckSkinUploader } from "./CheckSkinUploader";
 import { CheckSkinAnalyzer } from "./CheckSkinAnalyzer";
 import { CheckSkinProgress } from "./CheckSkinProgress";
+import { Button } from "@/components/ui/button";
 
 import type { SkinFormData, SkinAnalysisResult as SkinAnalysisResultType } from "@/lib/skinAnalysisService";
 
@@ -40,9 +41,11 @@ export const CheckSkinStepDisplay = ({
   showApiKeyField = false
 }: Props) => {
   if (step === "analyzing") {
+    // Step 1: Upload the image first
     if (!imageUrl) {
       return (
-        <div>
+        <div className="space-y-6">
+          <h3 className="text-xl font-semibold text-center mb-4">Step 1: Upload your skin image</h3>
           <CheckSkinProgress analysisProgress={analysisProgress} />
           <CheckSkinUploader
             onUploadComplete={onUploadComplete}
@@ -51,16 +54,22 @@ export const CheckSkinStepDisplay = ({
         </div>
       );
     }
+    
+    // Step 2: Analyze the image after it's uploaded
     return (
-      <CheckSkinAnalyzer
-        imageUrl={imageUrl}
-        formData={formData}
-        onAnalysisComplete={onAnalysisComplete}
-        onError={onAnalysisError}
-        onProgress={onProgress}
-      />
+      <div className="space-y-6">
+        <h3 className="text-xl font-semibold text-center mb-4">Step 2: Analyzing your skin</h3>
+        <CheckSkinAnalyzer
+          imageUrl={imageUrl}
+          formData={formData}
+          onAnalysisComplete={onAnalysisComplete}
+          onError={onAnalysisError}
+          onProgress={onProgress}
+        />
+      </div>
     );
   }
+  
   if (step === "results" && analysisResults && imageUrl) {
     return (
       <SkinAnalysisResult
@@ -76,6 +85,7 @@ export const CheckSkinStepDisplay = ({
       />
     );
   }
+  
   // Default to form
   return (
     <SkinAnalysisForm onSubmit={onFormSubmit} showApiKeyField={showApiKeyField} />

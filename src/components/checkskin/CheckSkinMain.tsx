@@ -1,10 +1,10 @@
-
 import { useState } from "react";
 import { SkinFormData, SkinAnalysisResult as SkinAnalysisResultType } from "@/lib/skinAnalysisService";
 import { CheckSkinErrorAlert } from "./CheckSkinErrorAlert";
 import { CheckSkinDisclaimer } from "./CheckSkinDisclaimer";
 import { CheckSkinDebugInfo } from "./CheckSkinDebugInfo";
 import { CheckSkinStepDisplay } from "./CheckSkinStepDisplay";
+import { toast } from "@/components/ui/sonner";
 
 export const CheckSkinMain = () => {
   const [step, setStep] = useState<'form' | 'analyzing' | 'results'>('form');
@@ -60,13 +60,17 @@ export const CheckSkinMain = () => {
         uploadStatus: 'Image uploaded successfully',
         analysisStatus: 'Starting analysis...'
       });
+      toast.success("Image uploaded successfully!");
     } else {
-      setStep('form');
       setError(result.error || "Failed to upload image");
       updateDebugInfo({
         uploadStatus: 'Upload failed',
         apiError: result.error,
         analysisStatus: 'Not started'
+      });
+      
+      toast.error("Upload failed", { 
+        description: result.error || "Please try again" 
       });
     }
   };
@@ -80,11 +84,13 @@ export const CheckSkinMain = () => {
   };
 
   const handleAnalysisError = (errorMessage: string) => {
-    setStep('form');
     setError(errorMessage);
     updateDebugInfo({
       analysisStatus: `Error: ${errorMessage}`,
       apiError: errorMessage
+    });
+    toast.error("Analysis failed", {
+      description: errorMessage || "Please try again"
     });
   };
 

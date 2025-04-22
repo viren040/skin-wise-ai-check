@@ -1,3 +1,4 @@
+
 import { supabase } from './supabase';
 import { v4 as uuidv4 } from 'uuid';
 import { ensureSkinAnalysisBucketExists } from '../../supabase/storage';
@@ -76,12 +77,12 @@ export const uploadSkinImage = async (file: File, userId: string = 'anonymous'):
     
     if (error) {
       console.error('Error uploading image:', error.message, error);
-      
+
       if (error.message.includes('JWT')) {
         throw new Error("Authentication error. Please refresh the page and try again.");
       } else if (error.message.includes('apikey')) {
         throw new Error("API key error. This might be a configuration issue.");
-      } else if (error.statusCode === 413 || file.size > 5 * 1024 * 1024) {
+      } else if (error.status === 413 || file.size > 5 * 1024 * 1024) {
         throw new Error("File is too large. Please upload a smaller image (under 5MB).");
       } else {
         throw new Error(`Upload error: ${error.message}`);

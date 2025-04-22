@@ -82,7 +82,8 @@ export const uploadSkinImage = async (file: File, userId: string = 'anonymous'):
         throw new Error("Authentication error. Please refresh the page and try again.");
       } else if (error.message.includes('apikey')) {
         throw new Error("API key error. This might be a configuration issue.");
-      } else if (error.status === 413 || file.size > 5 * 1024 * 1024) {
+      } else if (file.size > 5 * 1024 * 1024 || error.message.includes('413')) {
+        // Check file size directly and look for 413 in error message
         throw new Error("File is too large. Please upload a smaller image (under 5MB).");
       } else {
         throw new Error(`Upload error: ${error.message}`);

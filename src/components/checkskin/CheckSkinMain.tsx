@@ -1,28 +1,21 @@
 
-// This is the main logic/handler of the CheckSkin workflow
 import { useState } from "react";
 import { SkinAnalysisForm } from "@/components/SkinAnalysisForm";
 import { SkinAnalysisResult } from "@/components/SkinAnalysisResult";
-import { toast } from "@/components/ui/sonner";
-import {
-  uploadSkinImage,
-  analyzeSkinImage,
-  saveAnalysisData,
-  SkinFormData,
-  SkinAnalysisResult as SkinAnalysisResultType
-} from "@/lib/skinAnalysisService";
+import { SkinFormData, SkinAnalysisResult as SkinAnalysisResultType } from "@/lib/skinAnalysisService";
 import { CheckSkinProgress } from "./CheckSkinProgress";
 import { CheckSkinErrorAlert } from "./CheckSkinErrorAlert";
 import { CheckSkinDisclaimer } from "./CheckSkinDisclaimer";
+import { CheckSkinUploader } from "./CheckSkinUploader";
+import { CheckSkinAnalyzer } from "./CheckSkinAnalyzer";
 
 export const CheckSkinMain = () => {
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [showResults, setShowResults] = useState(false);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [step, setStep] = useState<'form' | 'analyzing' | 'results'>('form');
   const [analysisProgress, setAnalysisProgress] = useState(0);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [analysisResults, setAnalysisResults] = useState<SkinAnalysisResultType | null>(null);
-  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [formData, setFormData] = useState<SkinFormData>({});
   const [debugInfo, setDebugInfo] = useState<{
     uploadStatus: string;
     analysisStatus: string;
@@ -38,173 +31,71 @@ export const CheckSkinMain = () => {
     setDebugInfo(prev => ({
       ...prev,
       ...updates,
-      lastUpdate: Date.now() // Always update timestamp
+      lastUpdate: Date.now()
     }));
   };
 
   const handleFormSubmit = async (formData: FormData) => {
-    const imageFile = formData.get("skinImage") as File;
-    if (!imageFile) {
-      toast.error("Please upload an image for analysis");
-      return;
-    }
-
-    if (!imageFile.type.startsWith('image/')) {
-      toast.error("The uploaded file is not an image");
-      setError("Please upload a valid image file (JPEG, PNG, etc.)");
-      return;
-    }
-
-    if (imageFile.size > 5 * 1024 * 1024) { // 5 MB limit
-      toast.error("Image size exceeds the limit of 5MB");
-      setError("Please upload a smaller image (under 5MB)");
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setImagePreview(reader.result as string);
+    const skinFormData: SkinFormData = {
+      concernDescription: (formData.get("concernDescription") as string) || "",
+      duration: (formData.get("duration") as string) || "",
+      recentChanges: (formData.get("recentChanges") as string) || "",
+      isPainful: (formData.get("isPainful") as string) || "",
+      age: (formData.get("age") as string) || "",
+      skinType: (formData.get("skinType") as string) || "",
+      hasCondition: (formData.get("hasCondition") as string) || "",
+      additionalInfo: (formData.get("additionalInfo") as string) || ""
     };
-    reader.readAsDataURL(imageFile);
-
-    setIsAnalyzing(true);
-    setAnalysisProgress(0);
+    
+    setFormData(skinFormData);
+    setStep('analyzing');
     setError(null);
     updateDebugInfo({
       uploadStatus: 'Starting upload...',
       analysisStatus: 'Not started',
       apiError: undefined
     });
+  };
 
-    let progressInterval: number | undefined;
-    
-    try {
-      progressInterval = window.setInterval(() => {
-        setAnalysisProgress((prev) => {
-          if (prev >= 90) {
-            return 90;
-          }
-          return prev + 1; // Slower progress to give more time for processing
-        });
-      }, 500);
-
-      console.log('Starting image upload process...', imageFile);
-      updateDebugInfo({ uploadStatus: 'Uploading image...' });
-      
-      let imageUrl: string | null = null;
-      try {
-        // Upload the image
-        imageUrl = await uploadSkinImage(imageFile);
-        console.log('Upload complete, result:', imageUrl);
-        
-        if (!imageUrl) {
-          throw new Error("Failed to upload image. No URL was returned.");
-        }
-        
-        setUploadedImageUrl(imageUrl);
-        setAnalysisProgress(Math.max(30, analysisProgress));
-        console.log('Image uploaded successfully:', imageUrl);
-        updateDebugInfo({ uploadStatus: 'Image uploaded successfully' });
-      } catch (uploadError: any) {
-        console.error('Image upload failed:', uploadError);
-        updateDebugInfo({ 
-          uploadStatus: `Upload failed: ${uploadError.message || 'Unknown error'}`,
-          apiError: JSON.stringify(uploadError)
-        });
-        throw uploadError;
-      }
-
-      const skinFormData: SkinFormData = {
-        concernDescription: (formData.get("concernDescription") as string) || "",
-        duration: (formData.get("duration") as string) || "",
-        recentChanges: (formData.get("recentChanges") as string) || "",
-        isPainful: (formData.get("isPainful") as string) || "",
-        age: (formData.get("age") as string) || "",
-        skinType: (formData.get("skinType") as string) || "",
-        hasCondition: (formData.get("hasCondition") as string) || "",
-        additionalInfo: (formData.get("additionalInfo") as string) || ""
-      };
-
-      setAnalysisProgress(Math.max(50, analysisProgress));
-      console.log('Sending for analysis with data:', { imageUrl, skinFormData });
-      updateDebugInfo({ analysisStatus: 'Analyzing image...' });
-
-      const results = await analyzeSkinImage(imageUrl, skinFormData);
-      setAnalysisProgress(Math.max(80, analysisProgress));
-      console.log('Analysis results received:', results);
-      
+  const handleUploadComplete = (result: { success: boolean; imageUrl?: string; error?: string }) => {
+    if (result.success && result.imageUrl) {
+      setImageUrl(result.imageUrl);
       updateDebugInfo({ 
-        analysisStatus: results ? 'Analysis complete' : 'Analysis failed' 
+        uploadStatus: 'Image uploaded successfully',
+        analysisStatus: 'Starting analysis...'
       });
-
-      if (results) {
-        try {
-          await saveAnalysisData(imageUrl, skinFormData, results);
-        } catch (saveError) {
-          console.warn('Failed to save analysis data, but continuing with results', saveError);
-        }
-        
-        setAnalysisResults(results);
-
-        window.clearInterval(progressInterval);
-        setAnalysisProgress(100);
-
-        setTimeout(() => {
-          setIsAnalyzing(false);
-          setShowResults(true);
-          toast.success("Analysis complete!", {
-            description: "We've analyzed your skin and identified potential conditions.",
-          });
-        }, 500);
-      } else {
-        throw new Error("Failed to analyze image. Our AI service may be temporarily unavailable or could not process this image.");
-      }
-    } catch (error: any) {
-      console.error("Analysis error:", error);
-      
-      // Extract more detailed API error information if available
-      let errorMessage = error.message || "We encountered an error analyzing your skin. Please try again.";
-      let apiError = '';
-      
-      try {
-        // Try to parse if it's a JSON string error
-        if (typeof error.message === 'string' && (error.message.includes('{') || error.message.includes('['))) {
-          const parsedError = JSON.parse(error.message);
-          if (parsedError.message) {
-            apiError = parsedError.message;
-            errorMessage = `API Error: ${parsedError.message}`;
-          }
-        } else if (error.error && typeof error.error === 'object') {
-          apiError = JSON.stringify(error.error);
-          errorMessage = `API Error: ${error.error.message || JSON.stringify(error.error)}`;
-        }
-      } catch (parseError) {
-        // If parsing fails, use the original error message
-        console.error("Error parsing error message:", parseError);
-      }
-      
-      setError(errorMessage);
-      toast.error("Analysis failed", {
-        description: errorMessage,
-      });
-      setIsAnalyzing(false);
+    } else {
+      setStep('form');
+      setError(result.error || "Failed to upload image");
       updateDebugInfo({ 
-        uploadStatus: isAnalyzing ? debugInfo.uploadStatus : 'Error occurred',
-        analysisStatus: 'Error: ' + (error.message || 'Unknown error'),
-        apiError: apiError || JSON.stringify(error)
+        uploadStatus: 'Upload failed',
+        apiError: result.error,
+        analysisStatus: 'Not started'
       });
-    } finally {
-      if (progressInterval) {
-        window.clearInterval(progressInterval);
-      }
     }
   };
 
+  const handleAnalysisComplete = (results: SkinAnalysisResultType) => {
+    setAnalysisResults(results);
+    setStep('results');
+    updateDebugInfo({
+      analysisStatus: 'Analysis complete'
+    });
+  };
+
+  const handleAnalysisError = (errorMessage: string) => {
+    setStep('form');
+    setError(errorMessage);
+    updateDebugInfo({
+      analysisStatus: `Error: ${errorMessage}`,
+      apiError: errorMessage
+    });
+  };
+
   const handleStartOver = () => {
-    setShowResults(false);
-    setImagePreview(null);
+    setStep('form');
+    setImageUrl(null);
     setAnalysisProgress(0);
-    setUploadedImageUrl(null);
     setError(null);
     updateDebugInfo({
       uploadStatus: 'Not started',
@@ -231,17 +122,37 @@ export const CheckSkinMain = () => {
               </pre>
             </div>
           )}
-          {uploadedImageUrl && (
-            <p className="mt-2">Uploaded Image URL: <a href={uploadedImageUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">{uploadedImageUrl}</a></p>
+          {imageUrl && (
+            <p className="mt-2">Uploaded Image URL: <a href={imageUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">{imageUrl}</a></p>
           )}
         </div>
       )}
       
-      {isAnalyzing ? (
-        <CheckSkinProgress analysisProgress={analysisProgress} />
-      ) : showResults && analysisResults ? (
+      {step === 'analyzing' && (
+        <div>
+          {!imageUrl ? (
+            <div>
+              <CheckSkinProgress analysisProgress={analysisProgress} />
+              <CheckSkinUploader 
+                onUploadComplete={handleUploadComplete} 
+                onProgress={setAnalysisProgress} 
+              />
+            </div>
+          ) : (
+            <CheckSkinAnalyzer 
+              imageUrl={imageUrl}
+              formData={formData}
+              onAnalysisComplete={handleAnalysisComplete}
+              onError={handleAnalysisError}
+              onProgress={setAnalysisProgress}
+            />
+          )}
+        </div>
+      )}
+      
+      {step === 'results' && analysisResults && imageUrl && (
         <SkinAnalysisResult 
-          imageUrl={uploadedImageUrl || imagePreview || ""}
+          imageUrl={imageUrl}
           conditions={analysisResults.conditions}
           recommendations={analysisResults.recommendedProducts}
           skinInsights={analysisResults.skinInsights}
@@ -251,9 +162,12 @@ export const CheckSkinMain = () => {
           onStartOver={handleStartOver}
           chatGptAdvice={analysisResults.chatGptAdvice}
         />
-      ) : (
+      )}
+      
+      {step === 'form' && (
         <SkinAnalysisForm onSubmit={handleFormSubmit} showApiKeyField={false} />
       )}
+      
       <CheckSkinDisclaimer />
     </>
   );

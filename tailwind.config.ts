@@ -52,6 +52,12 @@ export default {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
 				},
+				"skin-danger": 'hsl(var(--skin-danger))',
+				"skin-warning": 'hsl(var(--skin-warning))',
+				"skin-success": 'hsl(var(--skin-success))',
+				"skin-info": 'hsl(var(--skin-info))',
+				"skin-purple": 'hsl(var(--skin-purple))',
+				"skin-light-purple": 'hsl(var(--skin-light-purple))',
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
 					foreground: 'hsl(var(--sidebar-foreground))',

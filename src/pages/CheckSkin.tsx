@@ -122,46 +122,12 @@ const CheckSkin = () => {
   const [showResults, setShowResults] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [analysisProgress, setAnalysisProgress] = useState(0);
-  const [analysisResults, setAnalysisResults] = useState<SkinAnalysisResultType>(mockAnalysisResults as SkinAnalysisResultType);
+  const [analysisResults, setAnalysisResults] = useState<SkinAnalysisResultType | null>(null);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
   
-  const isSupabaseConfigured = !!(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
+  const isSupabaseConfigured = true;
   
   const handleFormSubmit = async (formData: FormData) => {
-    if (!isSupabaseConfigured) {
-      const imageFile = formData.get("skinImage") as File;
-      if (!imageFile) {
-        toast.error("Please upload an image for analysis");
-        return;
-      }
-      
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(imageFile);
-      
-      setIsAnalyzing(true);
-      
-      let progress = 0;
-      const progressInterval = setInterval(() => {
-        progress += 10;
-        setAnalysisProgress(progress);
-        if (progress >= 100) {
-          clearInterval(progressInterval);
-          setTimeout(() => {
-            setIsAnalyzing(false);
-            setShowResults(true);
-            toast.success("Analysis complete! (Demo Mode)", {
-              description: "Using simulated results. Connect Supabase for real analysis.",
-            });
-          }, 500);
-        }
-      }, 500);
-      
-      return;
-    }
-    
     const imageFile = formData.get("skinImage") as File;
     if (!imageFile) {
       toast.error("Please upload an image for analysis");
@@ -207,30 +173,27 @@ const CheckSkin = () => {
       };
       
       setAnalysisProgress(50);
+      
       const results = await analyzeSkinImage(imageUrl, skinFormData);
       setAnalysisProgress(80);
       
       if (results) {
         await saveAnalysisData(imageUrl, skinFormData, results);
         setAnalysisResults(results);
+        
+        clearInterval(progressInterval);
+        setAnalysisProgress(100);
+        
+        setTimeout(() => {
+          setIsAnalyzing(false);
+          setShowResults(true);
+          toast.success("Analysis complete!", {
+            description: "We've analyzed your skin and identified potential conditions.",
+          });
+        }, 500);
       } else {
-        setAnalysisResults(mockAnalysisResults as SkinAnalysisResultType);
-        toast.warning("Using simulated results due to API limitations", {
-          description: "The analysis is based on pre-defined patterns rather than real-time AI analysis."
-        });
+        throw new Error("Failed to analyze image");
       }
-      
-      clearInterval(progressInterval);
-      setAnalysisProgress(100);
-      
-      setTimeout(() => {
-        setIsAnalyzing(false);
-        setShowResults(true);
-        toast.success("Analysis complete!", {
-          description: "We've analyzed your skin and identified potential conditions.",
-        });
-      }, 500);
-      
     } catch (error) {
       console.error("Analysis error:", error);
       toast.error("Analysis failed", {
@@ -296,7 +259,7 @@ const CheckSkin = () => {
                   <p className="text-xs text-gray-500 mt-4">Finalizing results...</p>
                 )}
               </div>
-            ) : showResults ? (
+            ) : showResults && analysisResults ? (
               <SkinAnalysisResult 
                 imageUrl={imagePreview || ""}
                 conditions={analysisResults.conditions}

@@ -1,3 +1,4 @@
+
 // Follow these steps to deploy this Edge Function to your Supabase project:
 // 1. Install Supabase CLI: npm install -g supabase
 // 2. Login to Supabase: supabase login
@@ -85,6 +86,8 @@ serve(async (req) => {
     Painful or irritating: ${formData.isPainful || 'no'}
     Existing skin condition: ${formData.hasCondition || 'no'}
     Additional info: ${formData.additionalInfo || 'none'}
+    
+    Based on the skin image provided, what do you observe? What are likely conditions? What treatment options or lifestyle changes would you recommend? Please be thorough but conversational.
     `;
 
     // Construct a detailed prompt based on the form data
@@ -139,7 +142,7 @@ serve(async (req) => {
 
     // Call OpenAI vision API
     const response = await openai.createChatCompletion({
-      model: "gpt-4-vision-preview",
+      model: "gpt-4o",
       messages: [
         { role: "system", content: systemPrompt },
         { 
@@ -190,11 +193,11 @@ serve(async (req) => {
       };
     }
 
-    // ---- NEW: Call GPT for chatty response ----
+    // ---- Get chatty response from GPT ----
     let chatGptAdvice = "";
     try {
       const chatGptResp = await openai.createChatCompletion({
-        model: "gpt-4o-mini",
+        model: "gpt-4o",
         messages: [
           { role: "system", content: "You are a kind, expert skincare assistant. Give suggestions in friendly, encouraging, human language. Please avoid medical jargon and stick to lifestyle and over-the-counter advice." },
           { role: "user", content: chatGptPrompt }
@@ -211,7 +214,7 @@ serve(async (req) => {
     const analysisId = crypto.randomUUID();
     analysisResult.id = analysisId;
 
-    // NEW: include ChatGPT advice in result
+    // Include ChatGPT advice in result
     analysisResult.chatGptAdvice = chatGptAdvice;
 
     return new Response(

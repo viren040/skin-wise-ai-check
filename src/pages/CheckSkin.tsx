@@ -6,8 +6,9 @@ import { SkinAnalysisForm } from "@/components/SkinAnalysisForm";
 import { SkinAnalysisResult } from "@/components/SkinAnalysisResult";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "@/components/ui/sonner";
+import { uploadSkinImage, analyzeSkinImage, saveAnalysisData, SkinFormData, SkinAnalysisResult as SkinAnalysisResultType } from "@/lib/skinAnalysisService";
 
-// Enhanced mock data with more skin insights
+// Fallback mock data in case the API call fails
 const mockAnalysisResults = {
   skinAge: 32,
   skinType: "Combination",
@@ -119,66 +120,106 @@ const CheckSkin = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [apiKey, setApiKey] = useState<string>("");
   const [analysisProgress, setAnalysisProgress] = useState(0);
-  const [analysisResults, setAnalysisResults] = useState(mockAnalysisResults);
+  const [analysisResults, setAnalysisResults] = useState<SkinAnalysisResultType>(mockAnalysisResults as SkinAnalysisResultType);
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
   
-  // Simulate API call and analysis process
-  const handleFormSubmit = (formData: FormData) => {
-    // Extract image file for preview
+  // Handle form submission with Supabase integration
+  const handleFormSubmit = async (formData: FormData) => {
+    // Extract image file for preview and upload
     const imageFile = formData.get("skinImage") as File;
-    if (imageFile) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(imageFile);
+    if (!imageFile) {
+      toast.error("Please upload an image for analysis");
+      return;
     }
     
-    // Get API key from form data if provided
-    const providedApiKey = formData.get("apiKey") as string;
-    if (providedApiKey) {
-      setApiKey(providedApiKey);
-    }
+    // Create local preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(imageFile);
     
-    // Simulate API call with progress
+    // Start analysis process
     setIsAnalyzing(true);
     setAnalysisProgress(0);
     
-    // Simulate analysis stages with progress
-    const interval = setInterval(() => {
-      setAnalysisProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setTimeout(() => {
-            setIsAnalyzing(false);
-            setShowResults(true);
-            
-            // Show success toast
-            toast.success("Analysis complete!", {
-              description: "We've analyzed your skin and identified potential conditions.",
-            });
-            
-            // Mock saving to database - In a real implementation, this would send to Supabase
-            console.log("Would save to database:", {
-              imageUrl: "user-image-url",
-              formData: Object.fromEntries(formData.entries()),
-              analysisResults: analysisResults,
-              timestamp: new Date().toISOString()
-            });
-            
-          }, 500);
-          return 100;
-        }
-        return prev + 10;
+    try {
+      // Progress simulation
+      const progressInterval = setInterval(() => {
+        setAnalysisProgress((prev) => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 500);
+      
+      // 1. Upload image to Supabase Storage
+      setAnalysisProgress(10);
+      const imageUrl = await uploadSkinImage(imageFile);
+      if (!imageUrl) {
+        throw new Error("Failed to upload image");
+      }
+      setUploadedImageUrl(imageUrl);
+      setAnalysisProgress(30);
+      
+      // 2. Extract form data as object
+      const skinFormData: SkinFormData = {
+        concernDescription: formData.get("concernDescription") as string || "",
+        duration: formData.get("duration") as string || "",
+        recentChanges: formData.get("recentChanges") as string || "",
+        isPainful: formData.get("isPainful") as string || "",
+        age: formData.get("age") as string || "",
+        skinType: formData.get("skinType") as string || "",
+        hasCondition: formData.get("hasCondition") as string || "",
+        additionalInfo: formData.get("additionalInfo") as string || ""
+      };
+      
+      // 3. Call Edge Function to analyze the skin
+      setAnalysisProgress(50);
+      const results = await analyzeSkinImage(imageUrl, skinFormData);
+      setAnalysisProgress(80);
+      
+      // 4. Save the analysis results to database
+      if (results) {
+        await saveAnalysisData(imageUrl, skinFormData, results);
+        setAnalysisResults(results);
+      } else {
+        // Fallback to mock data if API fails
+        setAnalysisResults(mockAnalysisResults as SkinAnalysisResultType);
+        toast.warning("Using simulated results due to API limitations", {
+          description: "The analysis is based on pre-defined patterns rather than real-time AI analysis."
+        });
+      }
+      
+      // Complete the analysis
+      clearInterval(progressInterval);
+      setAnalysisProgress(100);
+      
+      setTimeout(() => {
+        setIsAnalyzing(false);
+        setShowResults(true);
+        toast.success("Analysis complete!", {
+          description: "We've analyzed your skin and identified potential conditions.",
+        });
+      }, 500);
+      
+    } catch (error) {
+      console.error("Analysis error:", error);
+      toast.error("Analysis failed", {
+        description: "We encountered an error analyzing your skin. Please try again.",
       });
-    }, 300);
+      setIsAnalyzing(false);
+    }
   };
   
   const handleStartOver = () => {
     setShowResults(false);
     setImagePreview(null);
     setAnalysisProgress(0);
+    setUploadedImageUrl(null);
   };
   
   return (
@@ -232,7 +273,7 @@ const CheckSkin = () => {
                 onStartOver={handleStartOver}
               />
             ) : (
-              <SkinAnalysisForm onSubmit={handleFormSubmit} showApiKeyField={true} />
+              <SkinAnalysisForm onSubmit={handleFormSubmit} showApiKeyField={false} />
             )}
             
             <div className="mt-12 text-sm text-gray-500 text-center">

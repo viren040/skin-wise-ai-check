@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -6,13 +5,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
-import { Camera, Upload, AlertCircle } from "lucide-react";
+import { Camera, Upload, AlertCircle, Loader2 } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { toast } from "@/components/ui/sonner";
+import { uploadSkinImage } from "@/lib/skinAnalysisService";
 
 interface AnalysisFormProps {
   onSubmit: (data: FormData) => void;
@@ -23,23 +24,56 @@ export const SkinAnalysisForm = ({ onSubmit, showApiKeyField = false }: Analysis
   const [step, setStep] = useState(1);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormData>(new FormData());
-  
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [isUploading, setIsUploading] = useState(false);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      if (!file.type.startsWith("image/")) {
+        toast.error("The uploaded file is not an image");
+        setUploadError("The uploaded file is not an image");
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Image size exceeds the limit of 5MB");
+        setUploadError("Image size exceeds the limit of 5MB");
+        return;
+      }
+      setUploadError(null);
+      
       const reader = new FileReader();
-      
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-        const newFormData = new FormData();
-        newFormData.append("skinImage", file);
-        setFormData(newFormData);
-      };
-      
+      reader.onloadend = () => setImagePreview(reader.result as string);
       reader.readAsDataURL(file);
+
+      const newFormData = new FormData();
+      newFormData.append("skinImage", file);
+      setFormData(newFormData);
+
+      setIsUploading(true);
+      setImageUrl(null);
+      try {
+        const uploadedUrl = await uploadSkinImage(file);
+        if (uploadedUrl) {
+          setImageUrl(uploadedUrl);
+          newFormData.set("skinImageUrl", uploadedUrl);
+          setFormData(newFormData);
+          toast.success("Image uploaded successfully!");
+        } else {
+          setUploadError("Failed to upload image.");
+          toast.error("Failed to upload image.");
+        }
+      } catch (err: any) {
+        setUploadError(err.message || "Failed to upload image.");
+        toast.error("Failed to upload image", { description: err.message });
+        setImagePreview(null);
+      } finally {
+        setIsUploading(false);
+      }
     }
   };
-  
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     formData.set(name, value);
@@ -55,6 +89,7 @@ export const SkinAnalysisForm = ({ onSubmit, showApiKeyField = false }: Analysis
     if (step < (showApiKeyField ? 4 : 3)) {
       setStep(step + 1);
     } else {
+      if (imageUrl) formData.set("skinImageUrl", imageUrl);
       onSubmit(formData);
     }
   };
@@ -104,28 +139,45 @@ export const SkinAnalysisForm = ({ onSubmit, showApiKeyField = false }: Analysis
                     className="w-full h-full object-cover"
                   />
                   <button 
-                    onClick={() => setImagePreview(null)} 
+                    onClick={() => {
+                      setImagePreview(null);
+                      setImageUrl(null);
+                    }} 
                     className="absolute top-2 right-2 bg-white rounded-full p-1 shadow-md hover:bg-red-50 transition-colors"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                     </svg>
                   </button>
+                  {isUploading && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/70">
+                      <Loader2 className="animate-spin h-9 w-9 text-skin-purple mb-2" />
+                      <span className="text-skin-purple text-sm">Uploading...</span>
+                    </div>
+                  )}
                 </div>
                 <Button 
                   variant="outline" 
                   className="text-skin-purple border-skin-purple hover:bg-skin-light-purple"
-                  onClick={() => setImagePreview(null)}
+                  onClick={() => {
+                    setImagePreview(null);
+                    setImageUrl(null);
+                  }}
+                  disabled={isUploading}
                 >
                   Upload Different Image
                 </Button>
+                {uploadError && <div className="text-red-500 mt-2 text-sm">{uploadError}</div>}
+                {imageUrl && !isUploading && (
+                  <div className="mt-3 text-green-600 text-xs">Image ready! Click Next to continue.</div>
+                )}
               </div>
             ) : (
               <div className="flex flex-col items-center">
                 <div className="w-64 h-64 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center p-4 mb-4 cursor-pointer hover:border-skin-purple transition-colors" onClick={() => document.getElementById('image-upload')?.click()}>
                   <Camera className="h-12 w-12 text-gray-400 mb-2" />
                   <p className="text-gray-500 text-center">Click to upload or take a photo</p>
-                  <p className="text-gray-400 text-sm text-center mt-2">JPEG, PNG, or JPG (max. 10MB)</p>
+                  <p className="text-gray-400 text-sm text-center mt-2">JPEG, PNG, or JPG (max. 5MB)</p>
                 </div>
                 <Input 
                   id="image-upload" 
@@ -133,15 +185,18 @@ export const SkinAnalysisForm = ({ onSubmit, showApiKeyField = false }: Analysis
                   accept="image/*" 
                   className="hidden" 
                   onChange={handleImageChange}
+                  disabled={isUploading}
                 />
                 <Button 
                   variant="outline" 
                   className="text-skin-purple border-skin-purple hover:bg-skin-light-purple"
                   onClick={() => document.getElementById('image-upload')?.click()}
+                  disabled={isUploading}
                 >
                   <Upload className="mr-2 h-4 w-4" />
                   Select Image
                 </Button>
+                {uploadError && <div className="text-red-500 mt-2 text-sm">{uploadError}</div>}
               </div>
             )}
             
@@ -353,7 +408,9 @@ export const SkinAnalysisForm = ({ onSubmit, showApiKeyField = false }: Analysis
           
           <Button 
             onClick={handleNextStep}
-            disabled={step === 1 && !imagePreview}
+            disabled={
+              (step === 1 && (!imageUrl || isUploading))
+            }
             className="bg-skin-purple hover:bg-skin-purple/90"
           >
             {step === (showApiKeyField ? 4 : 3) ? "Analyze My Skin" : "Next"}

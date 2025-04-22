@@ -8,7 +8,6 @@ import { toast } from "@/components/ui/sonner";
 import { uploadSkinImage, analyzeSkinImage, saveAnalysisData, SkinFormData, SkinAnalysisResult as SkinAnalysisResultType } from "@/lib/skinAnalysisService";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 
 const mockAnalysisResults = {
   skinAge: 32,
@@ -124,6 +123,7 @@ const CheckSkin = () => {
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const [analysisResults, setAnalysisResults] = useState<SkinAnalysisResultType | null>(null);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   
   const handleFormSubmit = async (formData: FormData) => {
     const imageFile = formData.get("skinImage") as File;
@@ -140,6 +140,7 @@ const CheckSkin = () => {
     
     setIsAnalyzing(true);
     setAnalysisProgress(0);
+    setError(null);
     
     try {
       const progressInterval = setInterval(() => {
@@ -154,7 +155,7 @@ const CheckSkin = () => {
       
       const imageUrl = await uploadSkinImage(imageFile);
       if (!imageUrl) {
-        throw new Error("Failed to upload image");
+        throw new Error("Failed to upload image. Please check your connection and try again.");
       }
       setUploadedImageUrl(imageUrl);
       setAnalysisProgress(30);
@@ -190,12 +191,13 @@ const CheckSkin = () => {
           });
         }, 500);
       } else {
-        throw new Error("Failed to analyze image");
+        throw new Error("Failed to analyze image. Our AI service may be temporarily unavailable.");
       }
     } catch (error) {
       console.error("Analysis error:", error);
+      setError(error.message || "We encountered an error analyzing your skin. Please try again.");
       toast.error("Analysis failed", {
-        description: "We encountered an error analyzing your skin. Please try again.",
+        description: error.message || "We encountered an error analyzing your skin. Please try again.",
       });
       setIsAnalyzing(false);
     }
@@ -206,6 +208,7 @@ const CheckSkin = () => {
     setImagePreview(null);
     setAnalysisProgress(0);
     setUploadedImageUrl(null);
+    setError(null);
   };
   
   return (
@@ -223,6 +226,14 @@ const CheckSkin = () => {
                 Upload a photo of your skin concern and get instant AI-powered analysis and recommendations.
               </p>
             </div>
+            
+            {error && (
+              <Alert variant="destructive" className="mb-6">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
             
             {isAnalyzing ? (
               <div className="flex flex-col items-center justify-center py-16">

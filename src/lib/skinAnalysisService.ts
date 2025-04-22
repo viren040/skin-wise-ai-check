@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { v4 as uuidv4 } from 'uuid';
+import { ensureSkinAnalysisBucketExists } from '@/supabase/storage';
 
 export interface SkinFormData {
   concernDescription?: string;
@@ -47,6 +48,13 @@ export interface SkinAnalysisResult {
 // Upload image to Supabase Storage
 export const uploadSkinImage = async (file: File, userId: string = 'anonymous'): Promise<string | null> => {
   try {
+    // First ensure the bucket exists
+    const bucketExists = await ensureSkinAnalysisBucketExists();
+    if (!bucketExists) {
+      console.error('Failed to ensure bucket exists');
+      return null;
+    }
+
     const fileExt = file.name.split('.').pop();
     const fileName = `${userId}/${uuidv4()}.${fileExt}`;
     const filePath = `skin-images/${fileName}`;

@@ -125,8 +125,6 @@ const CheckSkin = () => {
   const [analysisResults, setAnalysisResults] = useState<SkinAnalysisResultType | null>(null);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
   
-  const isSupabaseConfigured = true;
-  
   const handleFormSubmit = async (formData: FormData) => {
     const imageFile = formData.get("skinImage") as File;
     if (!imageFile) {
@@ -225,16 +223,6 @@ const CheckSkin = () => {
                 Upload a photo of your skin concern and get instant AI-powered analysis and recommendations.
               </p>
             </div>
-            
-            {!isSupabaseConfigured && (
-              <Alert variant="destructive" className="mb-6">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Configuration Missing</AlertTitle>
-                <AlertDescription>
-                  Supabase is not properly configured. This page is running in demo mode with simulated results.
-                </AlertDescription>
-              </Alert>
-            )}
             
             {isAnalyzing ? (
               <div className="flex flex-col items-center justify-center py-16">

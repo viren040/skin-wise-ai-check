@@ -250,7 +250,7 @@ export const SkinAnalysisResult = ({
                     Your Skin Analysis
                   </h3>
 
-                  {(chatGptAdvice || (skinInsights as any)?.chatGptAdvice) && (
+                  {chatGptAdvice && (
                     <div className="bg-gray-50 border-l-4 border-teal-400 rounded-md p-4 mb-4 shadow-sm">
                       <div className="flex items-center mb-1">
                         <img
@@ -261,7 +261,7 @@ export const SkinAnalysisResult = ({
                         <span className="text-teal-700 font-semibold">AI-Powered Suggestions</span>
                       </div>
                       <div className="text-gray-700 text-sm whitespace-pre-line">
-                        {chatGptAdvice || (skinInsights as any)?.chatGptAdvice}
+                        {chatGptAdvice}
                       </div>
                     </div>
                   )}

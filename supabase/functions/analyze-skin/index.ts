@@ -1,4 +1,3 @@
-
 // Follow these steps to deploy this Edge Function to your Supabase project:
 // 1. Install Supabase CLI: npm install -g supabase
 // 2. Login to Supabase: supabase login
@@ -76,7 +75,7 @@ serve(async (req) => {
 
     // Build ChatGPT prompt (human readable)
     const chatGptPrompt = `
-    Please analyze the following skin information and give detailed, user-friendly advice in plain English (not JSON). Use friendly tone and actionable suggestions. The answers are:
+    Please analyze the following skin information and give detailed, user-friendly advice in plain English (not JSON). Use a friendly tone and actionable suggestions. The answers are:
 
     Age: ${formData.age || 'unknown'}
     Skin type: ${formData.skinType || 'unknown'}
@@ -86,8 +85,9 @@ serve(async (req) => {
     Painful or irritating: ${formData.isPainful || 'no'}
     Existing skin condition: ${formData.hasCondition || 'no'}
     Additional info: ${formData.additionalInfo || 'none'}
-    
-    Based on the skin image provided, what do you observe? What are likely conditions? What treatment options or lifestyle changes would you recommend? Please be thorough but conversational.
+    Image URL: ${imageUrl}
+
+    Based on this skin image and details, what do you observe? What are likely conditions? What lifestyle/treatment tips would you recommend? Please be conversational and supportive.
     `;
 
     // Construct a detailed prompt based on the form data
@@ -140,7 +140,7 @@ serve(async (req) => {
     
     Provide a detailed JSON analysis.`;
 
-    // Call OpenAI vision API
+    // Call OpenAI vision API for structured JSON analysis
     const response = await openai.createChatCompletion({
       model: "gpt-4o",
       messages: [
@@ -168,8 +168,7 @@ serve(async (req) => {
       }
     } catch (error) {
       console.error("Error parsing OpenAI response:", error);
-      
-      // Fallback to a simpler response structure
+      // Fallback analysis structure
       analysisResult = {
         skinAge: parseInt(formData.age) || 30,
         skinType: formData.skinType || "Normal",
@@ -193,9 +192,25 @@ serve(async (req) => {
       };
     }
 
-    // ---- Get chatty response from GPT ----
+    // Always call OpenAI again for friendly user-facing chatty advice
     let chatGptAdvice = "";
     try {
+      const chatGptPrompt = `
+      Please analyze the following skin information and give detailed, user-friendly advice in plain English (not JSON). Use a friendly tone and actionable suggestions. The answers are:
+
+      Age: ${formData.age || 'unknown'}
+      Skin type: ${formData.skinType || 'unknown'}
+      Skin concern: ${formData.concernDescription || 'none provided'}
+      Duration: ${formData.duration || 'unknown'}
+      Recent changes: ${formData.recentChanges || 'no'}
+      Painful or irritating: ${formData.isPainful || 'no'}
+      Existing skin condition: ${formData.hasCondition || 'no'}
+      Additional info: ${formData.additionalInfo || 'none'}
+      Image URL: ${imageUrl}
+
+      Based on this skin image and details, what do you observe? What are likely conditions? What lifestyle/treatment tips would you recommend? Please be conversational and supportive.
+      `;
+
       const chatGptResp = await openai.createChatCompletion({
         model: "gpt-4o",
         messages: [
@@ -207,15 +222,11 @@ serve(async (req) => {
       chatGptAdvice = chatGptResp.data.choices[0]?.message?.content?.trim() || "";
     } catch (gptErr) {
       console.error("Error in GPT chat call: ", gptErr);
-      chatGptAdvice = "We couldn't retrieve detailed advice from ChatGPT due to an error. Please try again later!";
+      chatGptAdvice = "Sorry, an AI-generated summary could not be provided at this time.";
     }
 
-    // Generate an ID for the analysis
-    const analysisId = crypto.randomUUID();
-    analysisResult.id = analysisId;
-
-    // Include ChatGPT advice in result
-    analysisResult.chatGptAdvice = chatGptAdvice;
+    analysisResult.id = crypto.randomUUID();
+    analysisResult.chatGptAdvice = chatGptAdvice; // Add advice to result
 
     return new Response(
       JSON.stringify(analysisResult),
@@ -223,7 +234,6 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error("Error processing request:", error);
-    
     return new Response(
       JSON.stringify({ 
         error: 'Error processing request', 

@@ -1,4 +1,3 @@
-
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -50,6 +49,7 @@ interface SkinAnalysisResultProps {
   skinAge?: number;
   hydrationLevel?: string;
   onStartOver: () => void;
+  chatGptAdvice?: string;
 }
 
 export const SkinAnalysisResult = ({ 
@@ -60,8 +60,9 @@ export const SkinAnalysisResult = ({
   skinType = "Not analyzed",
   skinAge,
   hydrationLevel = "Not analyzed",
-  onStartOver 
-}: SkinAnalysisResultProps) => {
+  onStartOver,
+  chatGptAdvice
+}: SkinAnalysisResultProps & { chatGptAdvice?: string }) => {
   const [expandedCondition, setExpandedCondition] = useState<string | null>(null);
   
   const toggleCondition = (name: string) => {
@@ -248,7 +249,23 @@ export const SkinAnalysisResult = ({
                   <h3 className="text-lg font-medium text-gray-900">
                     Your Skin Analysis
                   </h3>
-                  
+
+                  {(chatGptAdvice || (skinInsights as any)?.chatGptAdvice) && (
+                    <div className="bg-gray-50 border-l-4 border-teal-400 rounded-md p-4 mb-4 shadow-sm">
+                      <div className="flex items-center mb-1">
+                        <img
+                          src="https://cdn-icons-png.flaticon.com/512/4712/4712039.png"
+                          alt="ChatGPT Icon"
+                          className="h-6 w-6 mr-2"
+                        />
+                        <span className="text-teal-700 font-semibold">AI-Powered Suggestions</span>
+                      </div>
+                      <div className="text-gray-700 text-sm whitespace-pre-line">
+                        {chatGptAdvice || (skinInsights as any)?.chatGptAdvice}
+                      </div>
+                    </div>
+                  )}
+
                   {skinInsights ? (
                     <div className="space-y-6">
                       <div className="space-y-3">

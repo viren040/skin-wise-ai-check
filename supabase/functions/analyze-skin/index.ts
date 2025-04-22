@@ -1,4 +1,3 @@
-
 // Follow these steps to deploy this Edge Function to your Supabase project:
 // 1. Install Supabase CLI: npm install -g supabase
 // 2. Login to Supabase: supabase login
@@ -74,6 +73,20 @@ serve(async (req) => {
       );
     }
 
+    // Build ChatGPT prompt (human readable)
+    const chatGptPrompt = `
+    Please analyze the following skin information and give detailed, user-friendly advice in plain English (not JSON). Use friendly tone and actionable suggestions. The answers are:
+
+    Age: ${formData.age || 'unknown'}
+    Skin type: ${formData.skinType || 'unknown'}
+    Skin concern: ${formData.concernDescription || 'none provided'}
+    Duration: ${formData.duration || 'unknown'}
+    Recent changes: ${formData.recentChanges || 'no'}
+    Painful or irritating: ${formData.isPainful || 'no'}
+    Existing skin condition: ${formData.hasCondition || 'no'}
+    Additional info: ${formData.additionalInfo || 'none'}
+    `;
+
     // Construct a detailed prompt based on the form data
     const systemPrompt = `You are a dermatology AI assistant. Analyze the skin image and form data to provide an assessment. 
     Focus on identifying potential skin conditions, estimating skin age, determining skin type, and providing personalized recommendations.
@@ -140,10 +153,8 @@ serve(async (req) => {
       max_tokens: 2048
     });
 
-    // Parse the response to get the JSON data
     const responseText = response.data.choices[0]?.message?.content || '';
     let analysisResult;
-    
     try {
       // Extract the JSON part from the response
       const jsonMatch = responseText.match(/\{[\s\S]*\}/);
@@ -179,9 +190,29 @@ serve(async (req) => {
       };
     }
 
+    // ---- NEW: Call GPT for chatty response ----
+    let chatGptAdvice = "";
+    try {
+      const chatGptResp = await openai.createChatCompletion({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: "You are a kind, expert skincare assistant. Give suggestions in friendly, encouraging, human language. Please avoid medical jargon and stick to lifestyle and over-the-counter advice." },
+          { role: "user", content: chatGptPrompt }
+        ],
+        max_tokens: 600
+      });
+      chatGptAdvice = chatGptResp.data.choices[0]?.message?.content?.trim() || "";
+    } catch (gptErr) {
+      console.error("Error in GPT chat call: ", gptErr);
+      chatGptAdvice = "We couldn't retrieve detailed advice from ChatGPT due to an error. Please try again later!";
+    }
+
     // Generate an ID for the analysis
     const analysisId = crypto.randomUUID();
     analysisResult.id = analysisId;
+
+    // NEW: include ChatGPT advice in result
+    analysisResult.chatGptAdvice = chatGptAdvice;
 
     return new Response(
       JSON.stringify(analysisResult),

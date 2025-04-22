@@ -1,4 +1,3 @@
-
 import { supabase } from './supabase';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -42,6 +41,7 @@ export interface SkinAnalysisResult {
     price: string;
     link: string;
   }>;
+  chatGptAdvice?: string;
 }
 
 // Upload image to Supabase Storage

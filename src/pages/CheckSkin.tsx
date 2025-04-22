@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -11,7 +10,6 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
-// Fallback mock data in case the API call fails
 const mockAnalysisResults = {
   skinAge: 32,
   skinType: "Combination",
@@ -127,14 +125,10 @@ const CheckSkin = () => {
   const [analysisResults, setAnalysisResults] = useState<SkinAnalysisResultType>(mockAnalysisResults as SkinAnalysisResultType);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
   
-  // Check if Supabase is properly configured
   const isSupabaseConfigured = !!(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
   
-  // Handle form submission with Supabase integration
   const handleFormSubmit = async (formData: FormData) => {
-    // If Supabase is not configured, use mock data
     if (!isSupabaseConfigured) {
-      // Create local preview
       const imageFile = formData.get("skinImage") as File;
       if (!imageFile) {
         toast.error("Please upload an image for analysis");
@@ -147,10 +141,8 @@ const CheckSkin = () => {
       };
       reader.readAsDataURL(imageFile);
       
-      // Start mock analysis process
       setIsAnalyzing(true);
       
-      // Simulate analysis progress
       let progress = 0;
       const progressInterval = setInterval(() => {
         progress += 10;
@@ -170,26 +162,22 @@ const CheckSkin = () => {
       return;
     }
     
-    // Extract image file for preview and upload
     const imageFile = formData.get("skinImage") as File;
     if (!imageFile) {
       toast.error("Please upload an image for analysis");
       return;
     }
     
-    // Create local preview
     const reader = new FileReader();
     reader.onloadend = () => {
       setImagePreview(reader.result as string);
     };
     reader.readAsDataURL(imageFile);
     
-    // Start analysis process
     setIsAnalyzing(true);
     setAnalysisProgress(0);
     
     try {
-      // Progress simulation
       const progressInterval = setInterval(() => {
         setAnalysisProgress((prev) => {
           if (prev >= 90) {
@@ -200,8 +188,6 @@ const CheckSkin = () => {
         });
       }, 500);
       
-      // 1. Upload image to Supabase Storage
-      setAnalysisProgress(10);
       const imageUrl = await uploadSkinImage(imageFile);
       if (!imageUrl) {
         throw new Error("Failed to upload image");
@@ -209,7 +195,6 @@ const CheckSkin = () => {
       setUploadedImageUrl(imageUrl);
       setAnalysisProgress(30);
       
-      // 2. Extract form data as object
       const skinFormData: SkinFormData = {
         concernDescription: formData.get("concernDescription") as string || "",
         duration: formData.get("duration") as string || "",
@@ -221,24 +206,20 @@ const CheckSkin = () => {
         additionalInfo: formData.get("additionalInfo") as string || ""
       };
       
-      // 3. Call Edge Function to analyze the skin
       setAnalysisProgress(50);
       const results = await analyzeSkinImage(imageUrl, skinFormData);
       setAnalysisProgress(80);
       
-      // 4. Save the analysis results to database
       if (results) {
         await saveAnalysisData(imageUrl, skinFormData, results);
         setAnalysisResults(results);
       } else {
-        // Fallback to mock data if API fails
         setAnalysisResults(mockAnalysisResults as SkinAnalysisResultType);
         toast.warning("Using simulated results due to API limitations", {
           description: "The analysis is based on pre-defined patterns rather than real-time AI analysis."
         });
       }
       
-      // Complete the analysis
       clearInterval(progressInterval);
       setAnalysisProgress(100);
       
@@ -325,6 +306,7 @@ const CheckSkin = () => {
                 skinAge={analysisResults.skinAge}
                 hydrationLevel={analysisResults.hydrationLevel}
                 onStartOver={handleStartOver}
+                chatGptAdvice={analysisResults.chatGptAdvice}
               />
             ) : (
               <SkinAnalysisForm onSubmit={handleFormSubmit} showApiKeyField={false} />

@@ -159,24 +159,57 @@ export const analyzeSkinImage = async (
 ): Promise<SkinAnalysisResult | null> => {
   try {
     console.log('Sending request to analyze skin image:', imageUrl);
+    console.log('Form data being sent:', JSON.stringify(formData, null, 2));
     
-    // Explicitly use the supabase instance which includes the API key
-    const { data, error } = await supabase.functions.invoke('analyze-skin', {
-      body: {
-        imageUrl,
-        formData
+    // Add timeout handling
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120000); // 2-minute timeout
+    
+    try {
+      // Explicitly use the supabase instance which includes the API key
+      const { data, error } = await supabase.functions.invoke('analyze-skin', {
+        body: {
+          imageUrl,
+          formData
+        },
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (error) {
+        console.error('Error calling analyze-skin function:', error);
+        
+        if (error.message?.includes('aborted')) {
+          throw new Error("The analysis request timed out. Our AI service might be busy. Please try again later.");
+        }
+        
+        throw new Error(`Error from analyze-skin function: ${error.message}`);
       }
-    });
+      
+      console.log('Received analysis results:', data);
+      
+      if (!data) {
+        throw new Error("No data returned from analyze-skin function");
+      }
+      
+      return data;
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        throw new Error("The analysis request timed out. Our AI service might be busy. Please try again later.");
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  } catch (error: any) {
+    console.error('Error in analyzeSkinImage:', error);
     
-    if (error) {
-      console.error('Error calling analyze-skin function:', error);
-      return null;
+    // Map error messages to more user-friendly versions
+    if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
+      throw new Error("Network error while connecting to our AI service. Please check your internet connection.");
     }
     
-    console.log('Received analysis results:', data);
-    return data;
-  } catch (error) {
-    console.error('Error in analyzeSkinImage:', error);
-    return null;
+    throw error; // Re-throw other errors
   }
 };

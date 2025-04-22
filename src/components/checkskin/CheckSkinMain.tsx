@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { SkinFormData, SkinAnalysisResult as SkinAnalysisResultType } from "@/lib/skinAnalysisService";
 import { CheckSkinErrorAlert } from "./CheckSkinErrorAlert";
@@ -18,6 +19,9 @@ export const CheckSkinMain = () => {
     analysisStatus: string;
     apiError?: string;
     lastUpdate: number;
+    gptCalled?: boolean;
+    promptSent?: string;
+    gptResponse?: string;
   }>({
     uploadStatus: 'Not started',
     analysisStatus: 'Not started',
@@ -79,7 +83,8 @@ export const CheckSkinMain = () => {
     setAnalysisResults(results);
     setStep('results');
     updateDebugInfo({
-      analysisStatus: 'Analysis complete'
+      analysisStatus: 'Analysis complete',
+      gptResponse: JSON.stringify(results, null, 2)
     });
   };
 
@@ -102,7 +107,10 @@ export const CheckSkinMain = () => {
     updateDebugInfo({
       uploadStatus: 'Not started',
       analysisStatus: 'Not started',
-      apiError: undefined
+      apiError: undefined,
+      gptCalled: undefined,
+      promptSent: undefined,
+      gptResponse: undefined
     });
   };
 

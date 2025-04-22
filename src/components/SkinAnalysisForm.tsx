@@ -6,13 +6,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
-import { Camera, Upload } from "lucide-react";
+import { Camera, Upload, AlertCircle } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface AnalysisFormProps {
   onSubmit: (data: FormData) => void;
+  showApiKeyField?: boolean;
 }
 
-export const SkinAnalysisForm = ({ onSubmit }: AnalysisFormProps) => {
+export const SkinAnalysisForm = ({ onSubmit, showApiKeyField = false }: AnalysisFormProps) => {
   const [step, setStep] = useState(1);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormData>(new FormData());
@@ -45,7 +52,7 @@ export const SkinAnalysisForm = ({ onSubmit }: AnalysisFormProps) => {
   };
   
   const handleNextStep = () => {
-    if (step < 3) {
+    if (step < (showApiKeyField ? 4 : 3)) {
       setStep(step + 1);
     } else {
       onSubmit(formData);
@@ -64,7 +71,7 @@ export const SkinAnalysisForm = ({ onSubmit }: AnalysisFormProps) => {
         <div className="mb-6 flex justify-between items-center">
           <h2 className="text-2xl font-semibold text-gray-800">Skin Analysis</h2>
           <div className="flex items-center space-x-2">
-            {[1, 2, 3].map((i) => (
+            {[1, 2, 3, ...(showApiKeyField ? [4] : [])].map((i) => (
               <div 
                 key={i}
                 className={`w-8 h-8 rounded-full flex items-center justify-center ${
@@ -291,6 +298,47 @@ export const SkinAnalysisForm = ({ onSubmit }: AnalysisFormProps) => {
           </div>
         )}
         
+        {showApiKeyField && step === 4 && (
+          <div className="space-y-6">
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-medium text-gray-700">API Configuration</h3>
+              <Tooltip>
+                <TooltipTrigger>
+                  <AlertCircle className="h-4 w-4 text-amber-500" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="max-w-xs">This is for demo purposes only. In a production app, API keys would be securely stored on the server.</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="apiKey">
+                  OpenAI API Key (for demo purposes only)
+                </Label>
+                <Input 
+                  id="apiKey" 
+                  name="apiKey" 
+                  type="password"
+                  placeholder="sk-..."
+                  className="mt-1 font-mono"
+                  onChange={handleInputChange}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Your API key is only used for this analysis and is not stored.
+                </p>
+              </div>
+              
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-md">
+                <p className="text-sm text-amber-800">
+                  <strong>Important:</strong> In a real application, API calls would be handled securely through a backend service. This is a simplified demo.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+        
         <div className="flex justify-between mt-8">
           {step > 1 ? (
             <Button 
@@ -308,7 +356,7 @@ export const SkinAnalysisForm = ({ onSubmit }: AnalysisFormProps) => {
             disabled={step === 1 && !imagePreview}
             className="bg-skin-purple hover:bg-skin-purple/90"
           >
-            {step === 3 ? "Analyze My Skin" : "Next"}
+            {step === (showApiKeyField ? 4 : 3) ? "Analyze My Skin" : "Next"}
           </Button>
         </div>
       </CardContent>

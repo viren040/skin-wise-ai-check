@@ -66,25 +66,27 @@ export const uploadSkinImage = async (file: File, userId: string = 'anonymous'):
     
     console.log('Attempting to upload file:', filePath, 'Size:', file.size, 'Type:', file.type);
     
-    // Upload the file
+    // Upload the file with more explicit error handling
     const { data, error } = await supabase.storage
       .from('skin-analysis')
       .upload(filePath, file, {
         cacheControl: '3600',
-        upsert: false,
-        contentType: file.type // Explicitly set the content type
+        upsert: true, // Changed to true to allow overwriting if path exists
+        contentType: file.type
       });
     
     if (error) {
       console.error('Error uploading image:', error.message, error);
 
-      if (error.message.includes('JWT')) {
+      // More specific error handling
+      if (error.message.includes('JWT') || error.message.includes('token')) {
         throw new Error("Authentication error. Please refresh the page and try again.");
       } else if (error.message.includes('apikey')) {
         throw new Error("API key error. This might be a configuration issue.");
       } else if (file.size > 5 * 1024 * 1024 || error.message.includes('413')) {
-        // Check file size directly and look for 413 in error message
         throw new Error("File is too large. Please upload a smaller image (under 5MB).");
+      } else if (error.message.includes('timeout') || error.message.includes('network')) {
+        throw new Error("Network timeout. Please check your connection and try again.");
       } else {
         throw new Error(`Upload error: ${error.message}`);
       }

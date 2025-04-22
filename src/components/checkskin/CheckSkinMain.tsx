@@ -114,11 +114,37 @@ export const CheckSkinMain = () => {
     });
   };
 
+  const handleRetry = () => {
+    if (imageUrl) {
+      // If we have an image URL but analysis failed, retry the analysis step
+      setAnalysisProgress(30);
+      setError(null);
+      updateDebugInfo({
+        analysisStatus: 'Retrying analysis...',
+        apiError: undefined
+      });
+    } else {
+      // If we don't have an image URL, go back to the upload step
+      setStep('analyzing');
+      setAnalysisProgress(0);
+      setError(null);
+      updateDebugInfo({
+        uploadStatus: 'Retrying upload...',
+        analysisStatus: 'Not started',
+        apiError: undefined
+      });
+    }
+  };
+
   return (
     <>
       {error && <CheckSkinErrorAlert error={error} />}
       {(process.env.NODE_ENV === 'development' || true) && (
-        <CheckSkinDebugInfo debugInfo={debugInfo} imageUrl={imageUrl} />
+        <CheckSkinDebugInfo 
+          debugInfo={debugInfo} 
+          imageUrl={imageUrl} 
+          onRetry={handleRetry}
+        />
       )}
       <CheckSkinStepDisplay
         step={step}

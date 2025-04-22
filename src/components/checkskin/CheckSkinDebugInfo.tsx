@@ -1,7 +1,8 @@
 
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronRight, Bug } from "lucide-react";
+import { ChevronDown, ChevronRight, Bug, RefreshCw } from "lucide-react";
+import { toast } from "@/components/ui/sonner";
 
 interface CheckSkinDebugInfoProps {
   debugInfo: {
@@ -14,17 +15,27 @@ interface CheckSkinDebugInfoProps {
     gptResponse?: string;
   };
   imageUrl: string | null;
+  onRetry?: () => void;
 }
 
 export const CheckSkinDebugInfo = ({
   debugInfo,
-  imageUrl
+  imageUrl,
+  onRetry
 }: CheckSkinDebugInfoProps) => {
   const [expanded, setExpanded] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
+  const [showResponse, setShowResponse] = useState(false);
   
   // Fix the type comparison error - process.env.NODE_ENV returns a string, not a boolean
   if (process.env.NODE_ENV !== "development" && !debugInfo) return null;
+
+  const handleRetry = () => {
+    if (onRetry) {
+      toast.info("Retrying analysis...");
+      onRetry();
+    }
+  };
 
   return (
     <div className="mb-4 p-4 bg-gray-100 text-sm rounded border border-gray-300">
@@ -41,14 +52,50 @@ export const CheckSkinDebugInfo = ({
       {expanded && (
         <div className="mt-2">
           <div className="space-y-1">
-            <p><span className="font-semibold">Upload Status:</span> {debugInfo.uploadStatus}</p>
-            <p><span className="font-semibold">Analysis Status:</span> {debugInfo.analysisStatus}</p>
+            <div className="flex justify-between items-center">
+              <p>
+                <span className="font-semibold">Upload Status:</span> {debugInfo.uploadStatus}
+              </p>
+              {debugInfo.uploadStatus.includes('Error') && onRetry && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-6 text-xs"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRetry();
+                  }}
+                >
+                  <RefreshCw className="h-3 w-3 mr-1" /> Retry
+                </Button>
+              )}
+            </div>
+            
+            <div className="flex justify-between items-center">
+              <p>
+                <span className="font-semibold">Analysis Status:</span> {debugInfo.analysisStatus}
+              </p>
+              {debugInfo.analysisStatus.includes('Error') && onRetry && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-6 text-xs"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRetry();
+                  }}
+                >
+                  <RefreshCw className="h-3 w-3 mr-1" /> Retry Analysis
+                </Button>
+              )}
+            </div>
+            
             <p><span className="font-semibold">Last Updated:</span> {new Date(debugInfo.lastUpdate).toLocaleTimeString()}</p>
             
             {debugInfo.gptCalled && (
               <div className="mt-2">
                 <p className="font-semibold text-green-600">✓ GPT API was called</p>
-                <div className="flex items-center mt-1">
+                <div className="flex items-center space-x-2 mt-1">
                   <Button 
                     variant="outline" 
                     size="sm" 
@@ -60,6 +107,18 @@ export const CheckSkinDebugInfo = ({
                   >
                     {showPrompt ? "Hide Prompt" : "Show Prompt"}
                   </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="text-xs h-6"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowResponse(!showResponse);
+                    }}
+                  >
+                    {showResponse ? "Hide Response" : "Show Response"}
+                  </Button>
                 </div>
                 
                 {showPrompt && debugInfo.promptSent && (
@@ -67,6 +126,15 @@ export const CheckSkinDebugInfo = ({
                     <p className="text-xs font-semibold">Prompt sent to GPT:</p>
                     <pre className="mt-1 p-2 bg-gray-200 rounded overflow-auto max-h-40 text-xs">
                       {debugInfo.promptSent}
+                    </pre>
+                  </div>
+                )}
+                
+                {showResponse && debugInfo.gptResponse && (
+                  <div className="mt-2">
+                    <p className="text-xs font-semibold">Response from GPT:</p>
+                    <pre className="mt-1 p-2 bg-gray-200 rounded overflow-auto max-h-40 text-xs">
+                      {debugInfo.gptResponse}
                     </pre>
                   </div>
                 )}
@@ -84,12 +152,24 @@ export const CheckSkinDebugInfo = ({
           )}
           
           {imageUrl && (
-            <p className="mt-2">
-              <span className="font-semibold">Uploaded Image URL:</span>{" "}
-              <a href={imageUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline break-all">
-                {imageUrl}
-              </a>
-            </p>
+            <div className="mt-2">
+              <p className="font-semibold">Uploaded Image URL:</p>
+              <div className="flex mt-1">
+                <a href={imageUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline break-all text-xs">
+                  {imageUrl}
+                </a>
+              </div>
+              <div className="mt-2">
+                <p className="text-xs font-semibold">Image Preview:</p>
+                <div className="mt-1 border border-gray-300 rounded p-1 inline-block">
+                  <img 
+                    src={imageUrl} 
+                    alt="Uploaded skin image" 
+                    className="max-h-40 max-w-full"
+                  />
+                </div>
+              </div>
+            </div>
           )}
         </div>
       )}

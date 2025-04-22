@@ -161,29 +161,30 @@ export const analyzeSkinImage = async (
     console.log('Sending request to analyze skin image:', imageUrl);
     console.log('Form data being sent:', JSON.stringify(formData, null, 2));
     
-    // Add timeout handling
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 120000); // 2-minute timeout
+    // Set up a timeout mechanism
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error("The analysis request timed out. Our AI service might be busy. Please try again later.")), 120000);
+    });
     
     try {
-      // Explicitly use the supabase instance which includes the API key
-      const { data, error } = await supabase.functions.invoke('analyze-skin', {
+      // Call the analyze-skin function with the correct parameters
+      const functionCallPromise = supabase.functions.invoke('analyze-skin', {
         body: {
           imageUrl,
           formData
-        },
-        signal: controller.signal
+        }
       });
       
-      clearTimeout(timeoutId);
+      // Race between the function call and timeout
+      const { data, error } = await Promise.race([
+        functionCallPromise,
+        timeoutPromise.then(() => {
+          throw new Error("The analysis request timed out. Our AI service might be busy. Please try again later.");
+        })
+      ]) as { data: SkinAnalysisResult, error: any };
       
       if (error) {
         console.error('Error calling analyze-skin function:', error);
-        
-        if (error.message?.includes('aborted')) {
-          throw new Error("The analysis request timed out. Our AI service might be busy. Please try again later.");
-        }
-        
         throw new Error(`Error from analyze-skin function: ${error.message}`);
       }
       
@@ -195,12 +196,10 @@ export const analyzeSkinImage = async (
       
       return data;
     } catch (err: any) {
-      if (err.name === 'AbortError') {
+      if (err.message?.includes("timed out")) {
         throw new Error("The analysis request timed out. Our AI service might be busy. Please try again later.");
       }
       throw err;
-    } finally {
-      clearTimeout(timeoutId);
     }
   } catch (error: any) {
     console.error('Error in analyzeSkinImage:', error);

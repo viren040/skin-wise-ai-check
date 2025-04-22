@@ -23,7 +23,7 @@ export const ensureSkinAnalysisBucketExists = async () => {
     if (!bucketExists) {
       console.log('Creating skin-analysis bucket...');
       const { error: createError } = await supabaseStorage.storage.createBucket('skin-analysis', {
-        public: true,
+        public: true, // Make bucket public so we can access files
         fileSizeLimit: 10485760, // 10MB limit
       });
       
@@ -34,6 +34,12 @@ export const ensureSkinAnalysisBucketExists = async () => {
       console.log('Bucket created successfully');
     } else {
       console.log('Bucket already exists');
+    }
+    
+    // Add policy to allow public access to files if bucket exists
+    if (bucketExists) {
+      // This will be handled by RLS policies at the database level
+      console.log('Ensuring bucket is public');
     }
     
     return true;

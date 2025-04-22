@@ -49,6 +49,8 @@ export interface SkinAnalysisResult {
 // Upload image to Supabase Storage
 export const uploadSkinImage = async (file: File, userId: string = 'anonymous'): Promise<string | null> => {
   try {
+    console.log('Starting image upload process...');
+    
     // First ensure the bucket exists
     const bucketExists = await ensureSkinAnalysisBucketExists();
     if (!bucketExists) {
@@ -63,17 +65,20 @@ export const uploadSkinImage = async (file: File, userId: string = 'anonymous'):
     const fileName = `${userId}/${uuidv4()}.${fileExt}`;
     const filePath = `skin-images/${fileName}`;
     
-    console.log('Attempting to upload file:', filePath);
+    console.log('Attempting to upload file:', filePath, 'Size:', file.size, 'Type:', file.type);
+    
+    // Create a copy of the file to avoid potential issues with the file object
+    const fileBlob = file.slice(0, file.size, file.type);
     
     const { data, error } = await supabase.storage
       .from('skin-analysis')
-      .upload(filePath, file, {
+      .upload(filePath, fileBlob, {
         cacheControl: '3600',
         upsert: false
       });
     
     if (error) {
-      console.error('Error uploading image:', error);
+      console.error('Error uploading image:', error.message, error);
       return null;
     }
     
@@ -134,6 +139,8 @@ export const analyzeSkinImage = async (
   formData: SkinFormData
 ): Promise<SkinAnalysisResult | null> => {
   try {
+    console.log('Sending request to analyze skin image:', imageUrl);
+    
     const { data, error } = await supabase.functions.invoke('analyze-skin', {
       body: {
         imageUrl,
@@ -146,6 +153,7 @@ export const analyzeSkinImage = async (
       return null;
     }
     
+    console.log('Received analysis results:', data);
     return data;
   } catch (error) {
     console.error('Error in analyzeSkinImage:', error);

@@ -23,6 +23,13 @@ export const CheckSkinMain = () => {
   const [analysisResults, setAnalysisResults] = useState<SkinAnalysisResultType | null>(null);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [debugInfo, setDebugInfo] = useState<{
+    uploadStatus: string;
+    analysisStatus: string;
+  }>({
+    uploadStatus: 'Not started',
+    analysisStatus: 'Not started'
+  });
 
   const handleFormSubmit = async (formData: FormData) => {
     const imageFile = formData.get("skinImage") as File;
@@ -52,6 +59,10 @@ export const CheckSkinMain = () => {
     setIsAnalyzing(true);
     setAnalysisProgress(0);
     setError(null);
+    setDebugInfo({
+      uploadStatus: 'Starting upload...',
+      analysisStatus: 'Not started'
+    });
 
     try {
       const progressInterval = setInterval(() => {
@@ -60,11 +71,13 @@ export const CheckSkinMain = () => {
             clearInterval(progressInterval);
             return 90;
           }
-          return prev + 10;
+          return prev + 5; // Slower progress to give more time for processing
         });
-      }, 500);
+      }, 800);
 
-      console.log('Starting image upload...');
+      console.log('Starting image upload process...', imageFile);
+      setDebugInfo(prev => ({ ...prev, uploadStatus: 'Uploading image...' }));
+      
       const imageUrl = await uploadSkinImage(imageFile);
       console.log('Upload complete, result:', imageUrl);
       
@@ -75,6 +88,7 @@ export const CheckSkinMain = () => {
       setUploadedImageUrl(imageUrl);
       setAnalysisProgress(30);
       console.log('Image uploaded successfully:', imageUrl);
+      setDebugInfo(prev => ({ ...prev, uploadStatus: 'Image uploaded successfully' }));
 
       const skinFormData: SkinFormData = {
         concernDescription: (formData.get("concernDescription") as string) || "",
@@ -89,10 +103,16 @@ export const CheckSkinMain = () => {
 
       setAnalysisProgress(50);
       console.log('Sending for analysis with data:', { imageUrl, skinFormData });
+      setDebugInfo(prev => ({ ...prev, analysisStatus: 'Analyzing image...' }));
 
       const results = await analyzeSkinImage(imageUrl, skinFormData);
       setAnalysisProgress(80);
       console.log('Analysis results received:', results);
+      
+      setDebugInfo(prev => ({ 
+        ...prev, 
+        analysisStatus: results ? 'Analysis complete' : 'Analysis failed' 
+      }));
 
       if (results) {
         await saveAnalysisData(imageUrl, skinFormData, results);
@@ -109,7 +129,7 @@ export const CheckSkinMain = () => {
           });
         }, 500);
       } else {
-        throw new Error("Failed to analyze image. Our AI service may be temporarily unavailable.");
+        throw new Error("Failed to analyze image. Our AI service may be temporarily unavailable or could not process this image.");
       }
     } catch (error: any) {
       console.error("Analysis error:", error);
@@ -118,6 +138,10 @@ export const CheckSkinMain = () => {
         description: error.message || "We encountered an error analyzing your skin. Please try again.",
       });
       setIsAnalyzing(false);
+      setDebugInfo(prev => ({ 
+        ...prev, 
+        analysisStatus: 'Error: ' + (error.message || 'Unknown error') 
+      }));
     }
   };
 
@@ -127,11 +151,27 @@ export const CheckSkinMain = () => {
     setAnalysisProgress(0);
     setUploadedImageUrl(null);
     setError(null);
+    setDebugInfo({
+      uploadStatus: 'Not started',
+      analysisStatus: 'Not started'
+    });
   };
 
   return (
     <>
       {error && <CheckSkinErrorAlert error={error} />}
+      
+      {process.env.NODE_ENV === 'development' && debugInfo && (
+        <div className="mb-4 p-2 bg-gray-100 text-xs rounded border border-gray-300">
+          <p className="font-bold">Debug Info (development only):</p>
+          <p>Upload Status: {debugInfo.uploadStatus}</p>
+          <p>Analysis Status: {debugInfo.analysisStatus}</p>
+          {uploadedImageUrl && (
+            <p>Uploaded Image URL: <a href={uploadedImageUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">{uploadedImageUrl.substring(0, 50)}...</a></p>
+          )}
+        </div>
+      )}
+      
       {isAnalyzing ? (
         <CheckSkinProgress analysisProgress={analysisProgress} />
       ) : showResults && analysisResults ? (

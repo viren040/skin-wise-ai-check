@@ -1,3 +1,4 @@
+
 // Follow these steps to deploy this Edge Function to your Supabase project:
 // 1. Install Supabase CLI: npm install -g supabase
 // 2. Login to Supabase: supabase login
@@ -58,6 +59,8 @@ serve(async (req) => {
       imageUrl: string, 
       formData: SkinFormData 
     };
+
+    console.log("Edge function received request with imageUrl:", imageUrl?.substring(0, 100) + "...");
 
     if (!imageUrl) {
       return new Response(
@@ -140,6 +143,8 @@ serve(async (req) => {
     
     Provide a detailed JSON analysis.`;
 
+    console.log("Sending request to OpenAI with image URL");
+
     // Call OpenAI vision API for structured JSON analysis
     const response = await openai.createChatCompletion({
       model: "gpt-4o",
@@ -156,6 +161,8 @@ serve(async (req) => {
       max_tokens: 2048
     });
 
+    console.log("Received response from OpenAI");
+    
     const responseText = response.data.choices[0]?.message?.content || '';
     let analysisResult;
     try {

@@ -153,7 +153,7 @@ const CheckSkin = () => {
               </div>
             ) : showResults && analysisResults ? (
               <SkinAnalysisResult 
-                imageUrl={imagePreview || ""}
+                imageUrl={uploadedImageUrl || imagePreview || ""}
                 conditions={analysisResults.conditions}
                 recommendations={analysisResults.recommendedProducts}
                 skinInsights={analysisResults.skinInsights}

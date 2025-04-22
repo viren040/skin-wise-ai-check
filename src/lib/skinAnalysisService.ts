@@ -1,7 +1,6 @@
-
 import { supabase } from './supabase';
 import { v4 as uuidv4 } from 'uuid';
-import { ensureSkinAnalysisBucketExists, supabaseStorage } from '../../supabase/storage';
+import { ensureSkinAnalysisBucketExists } from '../../supabase/storage';
 
 export interface SkinFormData {
   concernDescription?: string;

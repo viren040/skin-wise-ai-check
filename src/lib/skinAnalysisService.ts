@@ -1,3 +1,4 @@
+
 import { supabase } from './supabase';
 import { v4 as uuidv4 } from 'uuid';
 import { ensureSkinAnalysisBucketExists } from '../../supabase/storage';
@@ -55,9 +56,14 @@ export const uploadSkinImage = async (file: File, userId: string = 'anonymous'):
       return null;
     }
 
+    // Log for debugging
+    console.log('Bucket exists, proceeding with upload');
+    
     const fileExt = file.name.split('.').pop();
     const fileName = `${userId}/${uuidv4()}.${fileExt}`;
     const filePath = `skin-images/${fileName}`;
+    
+    console.log('Attempting to upload file:', filePath);
     
     const { data, error } = await supabase.storage
       .from('skin-analysis')
@@ -71,10 +77,14 @@ export const uploadSkinImage = async (file: File, userId: string = 'anonymous'):
       return null;
     }
     
+    console.log('Upload successful, getting public URL');
+    
     // Get public URL for the uploaded image
     const { data: { publicUrl } } = supabase.storage
       .from('skin-analysis')
       .getPublicUrl(filePath);
+    
+    console.log('Generated public URL:', publicUrl);
     
     return publicUrl;
   } catch (error) {

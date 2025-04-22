@@ -31,6 +31,18 @@ export const CheckSkinMain = () => {
       return;
     }
 
+    if (!imageFile.type.startsWith('image/')) {
+      toast.error("The uploaded file is not an image");
+      setError("Please upload a valid image file (JPEG, PNG, etc.)");
+      return;
+    }
+
+    if (imageFile.size > 10 * 1024 * 1024) { // 10 MB limit
+      toast.error("Image size exceeds the limit of 10MB");
+      setError("Please upload a smaller image (under 10MB)");
+      return;
+    }
+
     const reader = new FileReader();
     reader.onloadend = () => {
       setImagePreview(reader.result as string);
@@ -52,12 +64,17 @@ export const CheckSkinMain = () => {
         });
       }, 500);
 
+      console.log('Starting image upload...');
       const imageUrl = await uploadSkinImage(imageFile);
+      console.log('Upload complete, result:', imageUrl);
+      
       if (!imageUrl) {
-        throw new Error("Failed to upload image. Please check your connection and try again.");
+        throw new Error("Failed to upload image. This might be due to network issues or permissions. Please try again later.");
       }
+      
       setUploadedImageUrl(imageUrl);
       setAnalysisProgress(30);
+      console.log('Image uploaded successfully:', imageUrl);
 
       const skinFormData: SkinFormData = {
         concernDescription: (formData.get("concernDescription") as string) || "",
@@ -71,9 +88,11 @@ export const CheckSkinMain = () => {
       };
 
       setAnalysisProgress(50);
+      console.log('Sending for analysis with data:', { imageUrl, skinFormData });
 
       const results = await analyzeSkinImage(imageUrl, skinFormData);
       setAnalysisProgress(80);
+      console.log('Analysis results received:', results);
 
       if (results) {
         await saveAnalysisData(imageUrl, skinFormData, results);

@@ -27,10 +27,20 @@ export const CheckSkinMain = () => {
     uploadStatus: string;
     analysisStatus: string;
     apiError?: string;
+    lastUpdate: number;
   }>({
     uploadStatus: 'Not started',
-    analysisStatus: 'Not started'
+    analysisStatus: 'Not started',
+    lastUpdate: Date.now()
   });
+
+  const updateDebugInfo = (updates: Partial<typeof debugInfo>) => {
+    setDebugInfo(prev => ({
+      ...prev,
+      ...updates,
+      lastUpdate: Date.now() // Always update timestamp
+    }));
+  };
 
   const handleFormSubmit = async (formData: FormData) => {
     const imageFile = formData.get("skinImage") as File;
@@ -45,9 +55,9 @@ export const CheckSkinMain = () => {
       return;
     }
 
-    if (imageFile.size > 10 * 1024 * 1024) { // 10 MB limit
-      toast.error("Image size exceeds the limit of 10MB");
-      setError("Please upload a smaller image (under 10MB)");
+    if (imageFile.size > 5 * 1024 * 1024) { // 5 MB limit
+      toast.error("Image size exceeds the limit of 5MB");
+      setError("Please upload a smaller image (under 5MB)");
       return;
     }
 
@@ -60,37 +70,49 @@ export const CheckSkinMain = () => {
     setIsAnalyzing(true);
     setAnalysisProgress(0);
     setError(null);
-    setDebugInfo({
+    updateDebugInfo({
       uploadStatus: 'Starting upload...',
-      analysisStatus: 'Not started'
+      analysisStatus: 'Not started',
+      apiError: undefined
     });
 
+    let progressInterval: number | undefined;
+    
     try {
-      const progressInterval = setInterval(() => {
+      progressInterval = window.setInterval(() => {
         setAnalysisProgress((prev) => {
           if (prev >= 90) {
-            clearInterval(progressInterval);
             return 90;
           }
-          return prev + 5; // Slower progress to give more time for processing
+          return prev + 1; // Slower progress to give more time for processing
         });
-      }, 800);
+      }, 500);
 
       console.log('Starting image upload process...', imageFile);
-      setDebugInfo(prev => ({ ...prev, uploadStatus: 'Uploading image...' }));
+      updateDebugInfo({ uploadStatus: 'Uploading image...' });
       
-      // We're using the actual File object now, not creating a new Blob
-      const imageUrl = await uploadSkinImage(imageFile);
-      console.log('Upload complete, result:', imageUrl);
-      
-      if (!imageUrl) {
-        throw new Error("Failed to upload image. This might be due to network issues or permissions. Please try again later.");
+      let imageUrl: string | null = null;
+      try {
+        // Upload the image
+        imageUrl = await uploadSkinImage(imageFile);
+        console.log('Upload complete, result:', imageUrl);
+        
+        if (!imageUrl) {
+          throw new Error("Failed to upload image. No URL was returned.");
+        }
+        
+        setUploadedImageUrl(imageUrl);
+        setAnalysisProgress(Math.max(30, analysisProgress));
+        console.log('Image uploaded successfully:', imageUrl);
+        updateDebugInfo({ uploadStatus: 'Image uploaded successfully' });
+      } catch (uploadError: any) {
+        console.error('Image upload failed:', uploadError);
+        updateDebugInfo({ 
+          uploadStatus: `Upload failed: ${uploadError.message || 'Unknown error'}`,
+          apiError: JSON.stringify(uploadError)
+        });
+        throw uploadError;
       }
-      
-      setUploadedImageUrl(imageUrl);
-      setAnalysisProgress(30);
-      console.log('Image uploaded successfully:', imageUrl);
-      setDebugInfo(prev => ({ ...prev, uploadStatus: 'Image uploaded successfully' }));
 
       const skinFormData: SkinFormData = {
         concernDescription: (formData.get("concernDescription") as string) || "",
@@ -103,24 +125,28 @@ export const CheckSkinMain = () => {
         additionalInfo: (formData.get("additionalInfo") as string) || ""
       };
 
-      setAnalysisProgress(50);
+      setAnalysisProgress(Math.max(50, analysisProgress));
       console.log('Sending for analysis with data:', { imageUrl, skinFormData });
-      setDebugInfo(prev => ({ ...prev, analysisStatus: 'Analyzing image...' }));
+      updateDebugInfo({ analysisStatus: 'Analyzing image...' });
 
       const results = await analyzeSkinImage(imageUrl, skinFormData);
-      setAnalysisProgress(80);
+      setAnalysisProgress(Math.max(80, analysisProgress));
       console.log('Analysis results received:', results);
       
-      setDebugInfo(prev => ({ 
-        ...prev, 
+      updateDebugInfo({ 
         analysisStatus: results ? 'Analysis complete' : 'Analysis failed' 
-      }));
+      });
 
       if (results) {
-        await saveAnalysisData(imageUrl, skinFormData, results);
+        try {
+          await saveAnalysisData(imageUrl, skinFormData, results);
+        } catch (saveError) {
+          console.warn('Failed to save analysis data, but continuing with results', saveError);
+        }
+        
         setAnalysisResults(results);
 
-        clearInterval(progressInterval);
+        window.clearInterval(progressInterval);
         setAnalysisProgress(100);
 
         setTimeout(() => {
@@ -162,11 +188,15 @@ export const CheckSkinMain = () => {
         description: errorMessage,
       });
       setIsAnalyzing(false);
-      setDebugInfo(prev => ({ 
-        ...prev, 
+      updateDebugInfo({ 
+        uploadStatus: isAnalyzing ? debugInfo.uploadStatus : 'Error occurred',
         analysisStatus: 'Error: ' + (error.message || 'Unknown error'),
-        apiError: apiError || undefined
-      }));
+        apiError: apiError || JSON.stringify(error)
+      });
+    } finally {
+      if (progressInterval) {
+        window.clearInterval(progressInterval);
+      }
     }
   };
 
@@ -176,9 +206,10 @@ export const CheckSkinMain = () => {
     setAnalysisProgress(0);
     setUploadedImageUrl(null);
     setError(null);
-    setDebugInfo({
+    updateDebugInfo({
       uploadStatus: 'Not started',
-      analysisStatus: 'Not started'
+      analysisStatus: 'Not started',
+      apiError: undefined
     });
   };
 
@@ -191,11 +222,17 @@ export const CheckSkinMain = () => {
           <p className="font-bold">Debug Info:</p>
           <p>Upload Status: {debugInfo.uploadStatus}</p>
           <p>Analysis Status: {debugInfo.analysisStatus}</p>
+          <p>Last Updated: {new Date(debugInfo.lastUpdate).toLocaleTimeString()}</p>
           {debugInfo.apiError && (
-            <p className="mt-2 text-red-500">API Error Details: {debugInfo.apiError}</p>
+            <div className="mt-2">
+              <p className="text-red-500">API Error Details:</p>
+              <pre className="mt-1 p-2 bg-gray-200 rounded overflow-auto max-h-32 text-xs">
+                {debugInfo.apiError}
+              </pre>
+            </div>
           )}
           {uploadedImageUrl && (
-            <p>Uploaded Image URL: <a href={uploadedImageUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">{uploadedImageUrl}</a></p>
+            <p className="mt-2">Uploaded Image URL: <a href={uploadedImageUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">{uploadedImageUrl}</a></p>
           )}
         </div>
       )}

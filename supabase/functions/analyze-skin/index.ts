@@ -40,17 +40,17 @@ const supabase = createClient(
   supabaseServiceKey || ''
 );
 
-serve(async (req) => {
-  // CORS headers
-  const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Content-Type': 'application/json',
-  };
+// Define CORS headers
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Content-Type': 'application/json',
+};
 
+serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers });
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
@@ -65,14 +65,14 @@ serve(async (req) => {
     if (!imageUrl) {
       return new Response(
         JSON.stringify({ error: 'Image URL is required' }),
-        { status: 400, headers }
+        { status: 400, headers: corsHeaders }
       );
     }
 
     if (!openaiApiKey) {
       return new Response(
         JSON.stringify({ error: 'OpenAI API key not configured' }),
-        { status: 500, headers }
+        { status: 500, headers: corsHeaders }
       );
     }
 
@@ -143,7 +143,7 @@ serve(async (req) => {
     
     Provide a detailed JSON analysis.`;
 
-    console.log("Sending request to OpenAI with image URL");
+    console.log("Sending request to OpenAI with image URL:", imageUrl);
 
     // Call OpenAI vision API for structured JSON analysis
     const response = await openai.createChatCompletion({
@@ -222,7 +222,13 @@ serve(async (req) => {
         model: "gpt-4o",
         messages: [
           { role: "system", content: "You are a kind, expert skincare assistant. Give suggestions in friendly, encouraging, human language. Please avoid medical jargon and stick to lifestyle and over-the-counter advice." },
-          { role: "user", content: chatGptPrompt }
+          { 
+            role: "user", 
+            content: [
+              { type: "text", text: chatGptPrompt },
+              { type: "image_url", image_url: { url: imageUrl } }
+            ] 
+          }
         ],
         max_tokens: 600
       });
@@ -237,7 +243,7 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify(analysisResult),
-      { headers }
+      { headers: corsHeaders }
     );
   } catch (error) {
     console.error("Error processing request:", error);
@@ -246,7 +252,7 @@ serve(async (req) => {
         error: 'Error processing request', 
         message: error.message
       }),
-      { status: 500, headers }
+      { status: 500, headers: corsHeaders }
     );
   }
 });

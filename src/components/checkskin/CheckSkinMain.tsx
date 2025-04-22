@@ -78,6 +78,7 @@ export const CheckSkinMain = () => {
       console.log('Starting image upload process...', imageFile);
       setDebugInfo(prev => ({ ...prev, uploadStatus: 'Uploading image...' }));
       
+      // We're using the actual File object now, not creating a new Blob
       const imageUrl = await uploadSkinImage(imageFile);
       console.log('Upload complete, result:', imageUrl);
       
@@ -161,13 +162,13 @@ export const CheckSkinMain = () => {
     <>
       {error && <CheckSkinErrorAlert error={error} />}
       
-      {process.env.NODE_ENV === 'development' && debugInfo && (
-        <div className="mb-4 p-2 bg-gray-100 text-xs rounded border border-gray-300">
-          <p className="font-bold">Debug Info (development only):</p>
+      {(process.env.NODE_ENV === 'development' || true) && debugInfo && (
+        <div className="mb-4 p-4 bg-gray-100 text-sm rounded border border-gray-300">
+          <p className="font-bold">Debug Info:</p>
           <p>Upload Status: {debugInfo.uploadStatus}</p>
           <p>Analysis Status: {debugInfo.analysisStatus}</p>
           {uploadedImageUrl && (
-            <p>Uploaded Image URL: <a href={uploadedImageUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">{uploadedImageUrl.substring(0, 50)}...</a></p>
+            <p>Uploaded Image URL: <a href={uploadedImageUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">{uploadedImageUrl}</a></p>
           )}
         </div>
       )}

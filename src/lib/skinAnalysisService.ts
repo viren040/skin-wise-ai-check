@@ -51,7 +51,7 @@ export const uploadSkinImage = async (file: File, userId: string = 'anonymous'):
   try {
     console.log('Starting image upload process...');
     
-    // First ensure the bucket exists
+    // Ensure the bucket exists (we've created it via SQL now)
     const bucketExists = await ensureSkinAnalysisBucketExists();
     if (!bucketExists) {
       console.error('Failed to ensure bucket exists');
@@ -67,12 +67,10 @@ export const uploadSkinImage = async (file: File, userId: string = 'anonymous'):
     
     console.log('Attempting to upload file:', filePath, 'Size:', file.size, 'Type:', file.type);
     
-    // Create a copy of the file to avoid potential issues with the file object
-    const fileBlob = file.slice(0, file.size, file.type);
-    
+    // Upload the file directly without creating a new Blob
     const { data, error } = await supabase.storage
       .from('skin-analysis')
-      .upload(filePath, fileBlob, {
+      .upload(filePath, file, {
         cacheControl: '3600',
         upsert: false
       });

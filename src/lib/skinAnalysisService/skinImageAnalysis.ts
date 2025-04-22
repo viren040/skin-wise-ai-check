@@ -10,9 +10,9 @@ export const analyzeSkinImage = async (
     console.log('Sending request to analyze skin image:', imageUrl);
     console.log('Form data being sent:', JSON.stringify(formData, null, 2));
     
-    // Set up a timeout mechanism
+    // Set up a timeout mechanism with a more reasonable timeout (60 seconds)
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error("The analysis request timed out. Our AI service might be busy. Please try again later.")), 120000);
+      setTimeout(() => reject(new Error("The analysis request timed out. Our AI service might be busy. Please try again later.")), 60000);
     });
     
     try {
@@ -56,6 +56,8 @@ export const analyzeSkinImage = async (
     // Map error messages to more user-friendly versions
     if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
       throw new Error("Network error while connecting to our AI service. Please check your internet connection.");
+    } else if (error.message?.includes('timed out')) {
+      throw new Error("The analysis is taking too long. Our AI service might be busy. Please try again later.");
     }
     
     throw error; // Re-throw other errors
